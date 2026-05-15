@@ -1,0 +1,477 @@
+{
+  "name": "03 - Follow-up Sequencial Yonzza",
+  "nodes": [
+    {
+      "id": "trigger-followup",
+      "name": "Trigger 09h00 Seg-Sex",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 12 * * 1-5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "buscar-abordados",
+      "name": "Buscar Leads Abordados",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://blwkfqfcwlxnydliucrd.supabase.co/rest/v1/leads",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "agencia",
+              "value": "eq.Yonzza Digital"
+            },
+            {
+              "name": "status",
+              "value": "eq.abordado"
+            },
+            {
+              "name": "whatsapp_ativo",
+              "value": "eq.true"
+            },
+            {
+              "name": "select",
+              "value": "id,nome,nome_fantasia,dono,whatsapp_numero,segmento,cidade,updated_at,created_at,resultado_alvo,historico_resumido"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "calcular-followup",
+      "name": "Calcular Dias e Etapa",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const hoje = new Date();\n\nreturn $input.all()\n  .map(item => {\n    const lead = item.json;\n    const ref = new Date(lead.updated_at || lead.created_at);\n    const dias = Math.floor((hoje - ref) / (1000 * 60 * 60 * 24));\n\n    let etapa = null;\n    let dia = null;\n    if (dias === 2) { etapa = 'D2'; dia = 2; }\n    else if (dias === 3) { etapa = 'D3'; dia = 3; }\n    // dia 4 = pausa estrategica, sem mensagem\n    else if (dias === 5) { etapa = 'D5'; dia = 5; }\n    else if (dias === 6) { etapa = 'D6'; dia = 6; }\n    else if (dias >= 7 && dias <= 9) { etapa = 'D7'; dia = 7; }\n\n    return {\n      json: {\n        lead_id: lead.id,\n        nome: lead.nome_fantasia || lead.nome,\n        dono: lead.dono ? lead.dono.split(' ')[0] : null,\n        segmento: lead.segmento || '',\n        cidade: lead.cidade || '',\n        whatsapp_numero: lead.whatsapp_numero,\n        resultado_alvo: lead.resultado_alvo || '',\n        historico_resumido: lead.historico_resumido || '',\n        dias,\n        dia,\n        etapa,\n        encerrar: etapa === 'D7',\n        precisa_followup: etapa !== null\n      }\n    };\n  })\n  .filter(item => item.json.precisa_followup);"
+      }
+    },
+    {
+      "id": "aguardar-followup",
+      "name": "Aguardar 2 min",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1120,
+        180
+      ],
+      "webhookId": "wait-03-yonzza",
+      "parameters": {
+        "amount": 2,
+        "unit": "minutes"
+      }
+    },
+    {
+      "id": "preparar-ctx-fu",
+      "name": "Preparar Contexto FU",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        180
+      ],
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\n\nconst contexto = `Gere o follow-up para o seguinte lead:\n- Negocio: ${lead.nome || 'o negocio'}\n- Dono (primeiro nome): ${lead.dono || 'nao identificado'}\n- Segmento: ${lead.segmento || 'nao informado'}\n- Cidade: ${lead.cidade || 'nao informada'}\n- Resultado que buscam: ${lead.resultado_alvo || 'resultados no negocio'}\n- Dia do follow-up: ${lead.dia}\n- Historico do que ja foi enviado: ${lead.historico_resumido || 'abordagem inicial enviada, sem detalhe disponivel'}`;\n\nreturn [{\n  json: {\n    lead_id: lead.lead_id,\n    lead_nome: lead.nome,\n    dono: lead.dono,\n    segmento: lead.segmento,\n    cidade: lead.cidade,\n    resultado_alvo: lead.resultado_alvo,\n    historico_resumido: lead.historico_resumido,\n    dia: lead.dia,\n    etapa: lead.etapa,\n    encerrar: lead.encerrar,\n    whatsapp_numero: lead.whatsapp_numero,\n    contexto_lead: contexto\n  }\n}];"
+      }
+    },
+    {
+      "id": "agente-followup",
+      "name": "AGENTE DE FOLLOW-UP",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        1560,
+        180
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.contexto_lead }}",
+        "options": {
+          "systemMessage": "# Agente de Follow-up | Yonzza Digital\n\n## IDENTIDADE E MISSAO\n\nVoce e Sara, consultora comercial da Yonzza Digital. Voce esta entrando em contato com um lead que nao respondeu a abordagem inicial. Sua missao e manter a conversa viva com tom adequado para cada dia, sem parecer regua automatizada, sem pressao, sem venda agressiva.\n\n---\n\n## REGRA DE OURO\n\nNUNCA aponte erros, falhas ou fraquezas especificas do negocio do lead. Use dados de mercado gerais, nunca direcionados ao cliente. NUNCA invente percentuais, numeros ou estatisticas. NUNCA use emojis.\n\n---\n\n## MEMORIA DE PROGRESSAO\n\nUse o campo historico_resumido para saber o que ja foi dito e qual angulo foi usado. NUNCA repita o mesmo ponto, insight ou argumento de uma interacao anterior. A progressao natural e: mercado > implicacao > decisao > encerramento. Cada dia avanca um passo nessa jornada.\n\n---\n\n## INSTRUCAO CENTRAL\n\nO campo `dia` informa em qual etapa voce esta. Siga as instrucoes especificas para o dia informado.\n\n---\n\n## DIA 2\n\nTom: observacional, quase casual. Como se voce tivesse lembrando de algo relevante.\nEstrutura: 1 a 2 partes no maximo.\n- Uma observacao de mercado relevante para o nicho (sem vender nada)\n- Conexao suave com o negocio: \"quando olhei o perfil de voces, pensei justamente nisso\"\n- SEM CTA de venda. No maximo uma pergunta aberta e leve no final, ou nenhuma.\n\nRegra: Nao dramatize. Nao crie urgencia. Nao justifique por que esta voltando a falar. Traga um insight e pare.\n\n---\n\n## DIA 3\n\nTom: curiosidade genuina, leve, quase pessoal. Sem peso.\nEstrutura: 1 parte, no maximo 3 linhas.\n- Pergunta direta sobre o negocio ou momento do lead (sem mencionar que nao respondeu)\n- OU um dado curto de mercado seguido de uma pergunta ao final\n- Deve parecer que voce pensou no negocio deles e teve uma curiosidade natural\n\nRegra: Sem dramatizar. Sem \"eu precisava falar contigo\". Maximo 1 ideia, 1 pergunta. Nao force profundidade. Nao seja filosofica ou metaforica.\n\n---\n\n## DIA 5\n\nTom: honesto e direto, mas sem pressao. Oferece algo concreto e leve.\nEstrutura: 2 a 3 partes separadas por \\\\.\n- Abertura com o primeiro nome, simples\n- Dado ou observacao de mercado relevante ao nicho\n- Oferta suave: \"posso te mostrar algumas ideias que pensei pra [negocio]\"\n\nRegra: Sem hype. Sem \"incrivel\", \"revolucionario\", \"mudou tudo\". Sem linguagem de coach (\"sua historia\", \"sua jornada\", \"cada decisao que voce toma\"). Mostre que pensou especificamente neles, mas sem exagerar.\n\n---\n\n## DIA 6\n\nTom: breve, quase nota rapida. Como se voce estivesse checando antes de encerrar.\nEstrutura: 1 parte, 2 a 3 linhas no maximo.\n- Referencia natural ao ultimo contato (sem cobrar resposta)\n- Pergunta direta e simples, sem rodeios\n\nRegra: Sem linguagem motivacional ou de coach. Sem reflexao profunda, analogia ou metafora. Tom de pessoa real mandando mensagem rapida.\n\n---\n\n## DIA 7\n\nTom: respeitoso, sereno, sem pressao. Porta genuinamente aberta.\nEstrutura: 2 a 3 partes separadas por \\\\.\n- Reconhece que talvez nao seja o momento certo (sem culpar o lead)\n- Encerra o contato com educacao e leveza\n- Deixa porta aberta com referencia ao resultado do segmento (alunos, pedidos, agendamentos, pacientes, matriculas...)\n\nRegra: NAO feche definitivamente. Deixe a porta aberta de verdade. Sem \"sucesso pra voce\" em tom de despedida solene. Estilo: \"se em algum momento mudar, pode me chamar.\" Sem \"ultima chance\", sem encerramento solene.\n\n---\n\n## SUBTEXTO OBRIGATORIO\n\nEm todo follow-up, o lead deve sentir, sem que seja dito diretamente:\n\"Essa pessoa parece entender do meu mercado. Ela nao esta me perseguindo. Talvez valha ouvir.\"\n\nNunca escreva isso de forma explicita. O subtexto deve emergir do tom, do dado escolhido e da ausencia de pressao.\n\n---\n\n## INTENSIDADE DECRESCENTE\n\nA intensidade decai ao longo dos dias, nunca cresce.\n- D2: insight interessante\n- D3: curiosidade leve\n- D5: oferta direta e honesta\n- D6: check-in curto\n- D7: encerramento sereno\n\nNunca aumente urgencia. Nunca use \"ultima chance\" antes do D7. No D7, nem \"ultima chance\" -- apenas reconhecimento calmo de que encerra contato.\n\n---\n\n## EFEITO WHATSAPP REAL\n\nUse \\\\ para separar partes. Cada parte deve soar como mensagem separada no WhatsApp. Sem paredes de texto. Frases curtas. Maximo 4 linhas por parte. Sem formatacao markdown, sem negrito, sem asterisco, sem italico. Sem emojis. Sem listas com traco ou asterisco.\n\n---\n\n## A REGUA NAO PODE PARECER REGUA\n\nCada mensagem deve soar espontanea. Como se voce tivesse pensado no lead naquele momento especifico. Nunca use estruturas que revelem sequencia (\"como prometido\", \"como falei antes\", \"meu terceiro contato\"). O lead nao pode perceber que esta dentro de uma regua automatizada.\n\n---\n\n## UMA IDEIA POR MENSAGEM\n\nCada mensagem tem UMA ideia central: uma observacao, OU uma pergunta, OU uma oferta. Nunca dois argumentos juntos. Se tiver mais de uma ideia, escolha a mais forte e elimine a outra.\n\n---\n\n## CONTROLAR EXCESSO DE INTELIGENCIA\n\nNao tente impressionar. Nao use palavras sofisticadas desnecessariamente. Nao construa argumentos elaborados. A mensagem mais eficaz parece simples, quase casual. Se esta sendo brilhante demais, provavelmente esta errada.\n\n---\n\n## REGRAS GERAIS\n\n- Use o primeiro nome do dono quando disponivel. Se nao souber, use o nome do negocio de forma natural.\n- ADAPTE ao segmento: alunos, pedidos, clientes, vendas, agendamentos, pacientes, matriculas.\n- Maximo 3 partes por mensagem, separadas por \\\\\n- Mensagens curtas -- maximo 4 linhas cada parte\n- Tom humano, consultivo, como uma pessoa real escrevendo\n\n---\n\n## SAIDA ESPERADA\n\nRetorne APENAS o texto da mensagem com partes separadas por \\\\. Nada mais. Sem explicacao, sem nota, sem comentario."
+        }
+      }
+    },
+    {
+      "id": "openrouter-model-fu",
+      "name": "OpenRouter Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        380
+      ],
+      "parameters": {
+        "model": "google/gemini-2.5-flash",
+        "options": {}
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "KMgOXcSnFBf24OAC",
+          "name": "openrouter_cloudfy"
+        }
+      }
+    },
+    {
+      "id": "separa-msgs-fu",
+      "name": "Separar Mensagens FU",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        180
+      ],
+      "parameters": {
+        "jsCode": "const agentOutput = $input.first().json.output || '';\nconst whatsapp = $('Preparar Contexto FU').first().json.whatsapp_numero;\n\nconst partes = agentOutput.split(/\\\\\\\\/)\n  .map(s => s.trim())\n  .filter(s => s.length > 0);\n\nreturn partes.map(mensagem => ({ json: { mensagem, whatsapp_numero: whatsapp } }));"
+      }
+    },
+    {
+      "id": "intervalo-natural-fu",
+      "name": "Intervalo Natural FU",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        180
+      ],
+      "parameters": {
+        "jsCode": "if ($itemIndex > 0) {\n  await new Promise(r => setTimeout(r, $itemIndex * 4000));\n}\nreturn $input.item;"
+      }
+    },
+    {
+      "id": "enviar-fu",
+      "name": "Envia Follow-up para o WhatsApp",
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        2220,
+        60
+      ],
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "Teste API",
+        "remoteJid": "={{ $json.whatsapp_numero + '@s.whatsapp.net' }}",
+        "messageText": "={{ $json.mensagem }}",
+        "options_message": {}
+      },
+      "credentials": {
+        "evolutionApi": {
+          "id": "WOx0wn6WBiHU43Kz",
+          "name": "evolution_cloudfy"
+        }
+      }
+    },
+    {
+      "id": "check-encerrar",
+      "name": "É D+7 (encerrar)?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2220,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false
+          },
+          "conditions": [
+            {
+              "id": "ce1",
+              "leftValue": "={{ $('Preparar Contexto FU').first().json.encerrar }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "status-sem-resposta",
+      "name": "Status → sem_resposta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2440,
+        220
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://blwkfqfcwlxnydliucrd.supabase.co/rest/v1/leads?id=eq.{{ $('Preparar Contexto FU').first().json.lead_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ \"status\": \"sem_resposta\" }) }}"
+      }
+    },
+    {
+      "id": "atualizar-historico-fu",
+      "name": "Atualizar Historico FU",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2660,
+        300
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://blwkfqfcwlxnydliucrd.supabase.co/rest/v1/leads?id=eq.{{ $('Preparar Contexto FU').first().json.lead_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ \"historico_resumido\": ($('Preparar Contexto FU').first().json.historico_resumido || '') + '\\n[D' + $('Preparar Contexto FU').first().json.dia + '] ' + ($('AGENTE DE FOLLOW-UP').first().json.output || '').replace(/\\n/g, ' ').substring(0, 300) }) }}"
+      }
+    },
+    {
+      "id": "memory-03",
+      "name": "Simple Memory FU",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1560,
+        320
+      ],
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Preparar Contexto FU').first().json.lead_id }}",
+        "contextWindowLength": 10
+      }
+    }
+  ],
+  "connections": {
+    "Trigger 09h00 Seg-Sex": {
+      "main": [
+        [
+          {
+            "node": "Buscar Leads Abordados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Leads Abordados": {
+      "main": [
+        [
+          {
+            "node": "Calcular Dias e Etapa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular Dias e Etapa": {
+      "main": [
+        [
+          {
+            "node": "Aguardar 2 min",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aguardar 2 min": {
+      "main": [
+        [
+          {
+            "node": "Preparar Contexto FU",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Contexto FU": {
+      "main": [
+        [
+          {
+            "node": "AGENTE DE FOLLOW-UP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AGENTE DE FOLLOW-UP": {
+      "main": [
+        [
+          {
+            "node": "Separar Mensagens FU",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "É D+7 (encerrar)?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AGENTE DE FOLLOW-UP",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar Mensagens FU": {
+      "main": [
+        [
+          {
+            "node": "Intervalo Natural FU",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intervalo Natural FU": {
+      "main": [
+        [
+          {
+            "node": "Envia Follow-up para o WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É D+7 (encerrar)?": {
+      "main": [
+        [
+          {
+            "node": "Status → sem_resposta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Atualizar Historico FU",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status → sem_resposta": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Historico FU",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Historico FU": {
+      "main": [[]]
+    },
+    "Simple Memory FU": {
+      "ai_memory": [
+        [
+          {
+            "node": "AGENTE DE FOLLOW-UP",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

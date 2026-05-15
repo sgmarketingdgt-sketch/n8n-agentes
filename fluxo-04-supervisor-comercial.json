@@ -1,0 +1,1044 @@
+{
+  "name": "04 - Supervisor Comercial Yonzza",
+  "nodes": [
+    {
+      "id": "trigger-manha",
+      "name": "Trigger 08h00 Resumo",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 11 * * 1-5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "timestamps-manha",
+      "name": "Timestamps Manha",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const agora = new Date();\nconst threshold48h = new Date(agora.getTime() - 48 * 60 * 60 * 1000);\nconst threshold7d = new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000);\nreturn [{ json: { threshold_48h: threshold48h.toISOString(), threshold_7d: threshold7d.toISOString() } }];"
+      }
+    },
+    {
+      "id": "buscar-pipeline",
+      "name": "Buscar Pipeline",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://blwkfqfcwlxnydliucrd.supabase.co/rest/v1/leads",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "agencia",
+              "value": "eq.Yonzza Digital"
+            },
+            {
+              "name": "status",
+              "value": "in.(novo,abordado,qualificando,qualificado,agendado,sem_resposta)"
+            },
+            {
+              "name": "select",
+              "value": "id,nome,nome_fantasia,segmento,status,cidade,updated_at"
+            },
+            {
+              "name": "limit",
+              "value": "200"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "buscar-travados-manha",
+      "name": "Buscar Travados Manha",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://blwkfqfcwlxnydliucrd.supabase.co/rest/v1/leads",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "agencia",
+              "value": "eq.Yonzza Digital"
+            },
+            {
+              "name": "status",
+              "value": "eq.qualificando"
+            },
+            {
+              "name": "updated_at",
+              "value": "=lt.{{ $('Timestamps Manha').first().json.threshold_48h }}"
+            },
+            {
+              "name": "select",
+              "value": "id,nome,nome_fantasia,segmento,cidade,updated_at"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "preparar-resumo",
+      "name": "Preparar Contexto Resumo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const pipeline = $('Buscar Pipeline').first().json;\nconst travadosRaw = $input.first().json;\nconst leads = Array.isArray(pipeline) ? pipeline : [];\nconst travados = Array.isArray(travadosRaw) ? travadosRaw : [];\n\nconst statusCount = {};\nfor (const l of leads) { statusCount[l.status] = (statusCount[l.status] || 0) + 1; }\n\nconst hoje = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });\nconst agendados = leads.filter(l => l.status === 'agendado');\n\nconst travadosInfo = travados.length > 0\n  ? travados.map(l => `${l.nome_fantasia || l.nome} (${l.segmento || '-'}, ${l.cidade || '-'}) parado desde ${new Date(l.updated_at).toLocaleDateString('pt-BR')}`).join('\\n')\n  : 'nenhum';\n\nconst agendadosInfo = agendados.length > 0\n  ? agendados.map(l => `${l.nome_fantasia || l.nome} (${l.segmento || '-'})`).join('\\n')\n  : 'nenhuma reuniao hoje';\n\nconst contexto = `RESUMO DO DIA - ${hoje}\\n\\nPIPELINE:\\nnovo: ${statusCount['novo'] || 0} | abordado: ${statusCount['abordado'] || 0} | qualificando: ${statusCount['qualificando'] || 0} | qualificado: ${statusCount['qualificado'] || 0} | agendado: ${statusCount['agendado'] || 0} | sem_resposta: ${statusCount['sem_resposta'] || 0}\\nTotal ativo: ${leads.length}\\n\\nQUALIFICANDO TRAVADOS (48h+):\\n${travadosInfo}\\n\\nREUNIOES AGENDADAS:\\n${agendadosInfo}`;\n\nreturn [{ json: { contexto } }];"
+      }
+    },
+    {
+      "id": "agente-resumo",
+      "name": "AGENTE RESUMO MANHA",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        1100,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.contexto }}",
+        "options": {
+          "systemMessage": "Voce e o supervisor comercial da Yonzza Digital. Recebe os dados do pipeline toda manha e gera um resumo direto e util para a gestora.\n\nO que incluir:\n- Status do pipeline com contagens por etapa\n- Leads travados ou em risco que precisam de atencao\n- Reunioes agendadas para hoje\n- Uma ou duas acoes prioritarias para o dia\n\nRegras:\n- Tom direto, como supervisor experiente\n- Sem markdown, sem emojis, sem tracinho longo\n- Separe blocos com \\\\\n- Maximo 5 blocos, cada um maximo 4 linhas\n- Se nao houver nada critico, diga claramente\n\nRetorne APENAS o texto do resumo."
+        }
+      }
+    },
+    {
+      "id": "openrouter-resumo",
+      "name": "OpenRouter Resumo",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        180
+      ],
+      "parameters": {
+        "model": "google/gemini-2.5-flash",
+        "options": {}
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "KMgOXcSnFBf24OAC",
+          "name": "openrouter_cloudfy"
+        }
+      }
+    },
+    {
+      "id": "enviar-resumo",
+      "name": "Envia Resumo para Sarah",
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        0
+      ],
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "Teste API",
+        "remoteJid": "5511912319611@s.whatsapp.net",
+        "messageText": "={{ $json.output }}",
+        "options_message": {}
+      },
+      "credentials": {
+        "evolutionApi": {
+          "id": "WOx0wn6WBiHU43Kz",
+          "name": "evolution_cloudfy"
+        }
+      }
+    },
+    {
+      "id": "trigger-tarde",
+      "name": "Trigger 17h00 Alerta",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        400
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 20 * * 1-5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "timestamps-tarde",
+      "name": "Timestamps Tarde",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const agora = new Date();\nconst threshold48h = new Date(agora.getTime() - 48 * 60 * 60 * 1000);\nconst threshold7d = new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000);\nreturn [{ json: { threshold_48h: threshold48h.toISOString(), threshold_7d: threshold7d.toISOString() } }];"
+      }
+    },
+    {
+      "id": "buscar-travados-tarde",
+      "name": "Buscar Travados Tarde",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        400
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://blwkfqfcwlxnydliucrd.supabase.co/rest/v1/leads",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "agencia",
+              "value": "eq.Yonzza Digital"
+            },
+            {
+              "name": "status",
+              "value": "eq.qualificando"
+            },
+            {
+              "name": "updated_at",
+              "value": "=lt.{{ $('Timestamps Tarde').first().json.threshold_48h }}"
+            },
+            {
+              "name": "select",
+              "value": "id,nome,nome_fantasia,segmento,cidade,updated_at,historico_resumido"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "buscar-abordados-antigos",
+      "name": "Buscar Abordados Antigos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        400
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://blwkfqfcwlxnydliucrd.supabase.co/rest/v1/leads",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "agencia",
+              "value": "eq.Yonzza Digital"
+            },
+            {
+              "name": "status",
+              "value": "eq.abordado"
+            },
+            {
+              "name": "updated_at",
+              "value": "=lt.{{ $('Timestamps Tarde').first().json.threshold_7d }}"
+            },
+            {
+              "name": "select",
+              "value": "id,nome,nome_fantasia,segmento,cidade,updated_at"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "preparar-alerta",
+      "name": "Preparar Contexto Alerta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const travadosRaw = $('Buscar Travados Tarde').first().json;\nconst antigosRaw = $input.first().json;\nconst travados = Array.isArray(travadosRaw) ? travadosRaw : [];\nconst antigos = Array.isArray(antigosRaw) ? antigosRaw : [];\n\nconst hoje = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });\n\nconst travadosInfo = travados.length > 0\n  ? travados.map(l => `${l.nome_fantasia || l.nome} (${l.segmento || '-'}, ${l.cidade || '-'}) parado desde ${new Date(l.updated_at).toLocaleDateString('pt-BR')}`).join('\\n')\n  : 'nenhum';\n\nconst antigosInfo = antigos.length > 0\n  ? antigos.map(l => `${l.nome_fantasia || l.nome} (${l.segmento || '-'}) abordado em ${new Date(l.updated_at).toLocaleDateString('pt-BR')}, follow-up pode ter falhado`).join('\\n')\n  : 'nenhum';\n\nconst contexto = `ALERTA COMERCIAL - ${hoje}\\n\\nQUALIFICANDO TRAVADOS (48h+ sem avanco):\\n${travadosInfo}\\n\\nABORDADOS SEM AVANCO (7+ dias):\\n${antigosInfo}\\n\\nTotal em risco: ${travados.length + antigos.length}`;\n\nreturn [{ json: { contexto, total_em_risco: travados.length + antigos.length } }];"
+      }
+    },
+    {
+      "id": "agente-alerta",
+      "name": "AGENTE ALERTA TARDE",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        1100,
+        400
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.contexto }}",
+        "options": {
+          "systemMessage": "Voce e o supervisor comercial da Yonzza Digital. Recebe os dados de alerta do fim de tarde e avisa a gestora sobre o que precisa de atencao.\n\nO que incluir:\n- Leads em qualificando travados (precisam de toque manual)\n- Leads abordados com provavel falha silenciosa no follow-up\n- Acao recomendada para cada caso\n- Se nao houver nada critico, confirme que o pipeline esta saudavel\n\nRegras:\n- Tom direto e pratico, sem alarme desnecessario\n- Sem markdown, sem emojis, sem tracinho longo\n- Separe blocos com \\\\\n- Maximo 4 blocos, cada um maximo 4 linhas\n\nRetorne APENAS o texto do alerta."
+        }
+      }
+    },
+    {
+      "id": "openrouter-alerta",
+      "name": "OpenRouter Alerta",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        580
+      ],
+      "parameters": {
+        "model": "google/gemini-2.5-flash",
+        "options": {}
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "KMgOXcSnFBf24OAC",
+          "name": "openrouter_cloudfy"
+        }
+      }
+    },
+    {
+      "id": "enviar-alerta",
+      "name": "Envia Alerta para Sarah",
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        400
+      ],
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "Teste API",
+        "remoteJid": "5511912319611@s.whatsapp.net",
+        "messageText": "={{ $json.output }}",
+        "options_message": {}
+      },
+      "credentials": {
+        "evolutionApi": {
+          "id": "WOx0wn6WBiHU43Kz",
+          "name": "evolution_cloudfy"
+        }
+      }
+    },
+    {
+      "id": "trigger-briefing-manha",
+      "name": "Trigger 08h00 Briefing",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        800
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 11 * * 1-5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "timestamps-hoje",
+      "name": "Timestamps Hoje",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        800
+      ],
+      "parameters": {
+        "jsCode": "// Calcula inicio e fim do dia de hoje no fuso BRT (UTC-3)\nconst agora = new Date();\nconst brtOffsetMs = 3 * 60 * 60 * 1000;\nconst brtNow = new Date(agora.getTime() - brtOffsetMs);\nconst startOfTodayBRT = new Date(brtNow);\nstartOfTodayBRT.setUTCHours(0, 0, 0, 0);\nconst startUTC = new Date(startOfTodayBRT.getTime() + brtOffsetMs);\nconst endUTC = new Date(startUTC.getTime() + 24 * 60 * 60 * 1000 - 1);\nreturn [{ json: { time_min: startUTC.toISOString(), time_max: endUTC.toISOString() } }];"
+      }
+    },
+    {
+      "id": "listar-reunioes-hoje",
+      "name": "Listar Reunioes de Hoje",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        440,
+        800
+      ],
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "agenciayonzza@gmail.com",
+          "mode": "id"
+        },
+        "returnAll": false,
+        "limit": 20,
+        "options": {
+          "timeMin": "={{ $json.time_min }}",
+          "timeMax": "={{ $json.time_max }}"
+        }
+      },
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "CONFIGURE_NO_N8N",
+          "name": "Google Calendar Yonzza"
+        }
+      }
+    },
+    {
+      "id": "filtrar-reunioes-hoje",
+      "name": "Filtrar Reunioes Yonzza Hoje",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        800
+      ],
+      "parameters": {
+        "jsCode": "const events = $input.all();\nconst reunioes = events\n  .filter(item => item.json.summary && item.json.summary.includes('Triagem'))\n  .map(item => {\n    const ev = item.json;\n    return {\n      json: {\n        event_id: ev.id,\n        event_summary: ev.summary || '',\n        event_description: ev.description || '',\n        event_start: ev.start ? (ev.start.dateTime || ev.start.date) : '',\n        hangout_link: ev.hangoutLink || ''\n      }\n    };\n  });\nif (reunioes.length === 0) return [];\nreturn reunioes;"
+      }
+    },
+    {
+      "id": "extrair-tel-manha",
+      "name": "Extrair Telefone Manha",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        800
+      ],
+      "parameters": {
+        "jsCode": "const event = $input.first().json;\nconst descricao = event.event_description || '';\nconst phoneMatch = descricao.match(/WhatsApp:\\s*([^\\n@]+)/);\nconst telefone = phoneMatch ? phoneMatch[1].trim().replace('@s.whatsapp.net','').replace('@c.us','') : null;\nreturn [{ json: { ...event, telefone } }];"
+      }
+    },
+    {
+      "id": "buscar-lead-manha",
+      "name": "Buscar Lead Briefing Manha",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        800
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://blwkfqfcwlxnydliucrd.supabase.co/rest/v1/leads",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "agencia",
+              "value": "eq.Yonzza Digital"
+            },
+            {
+              "name": "whatsapp_numero",
+              "value": "=eq.{{ $json.telefone }}"
+            },
+            {
+              "name": "select",
+              "value": "id,nome,nome_fantasia,segmento,cidade,dono,status,historico_resumido,angulo,conteudo_angulo,resultado_alvo"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "preparar-briefing-manha",
+      "name": "Preparar Briefing Manha",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        800
+      ],
+      "parameters": {
+        "jsCode": "const event = $('Extrair Telefone Manha').first().json;\nconst leadsRaw = $input.first().json;\nconst leads = Array.isArray(leadsRaw) ? leadsRaw : [leadsRaw];\nconst lead = leads[0];\n\nif (!lead || !lead.id) return [];\n\nconst horario = event.event_start\n  ? new Date(event.event_start).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })\n  : 'horario nao identificado';\n\nconst contexto = `BRIEFING DE PREPARACAO - reuniao hoje as ${horario}\\n\\nLEAD:\\nNegocio: ${lead.nome_fantasia || lead.nome}\\nSegmento: ${lead.segmento || 'nao informado'}\\nCidade: ${lead.cidade || 'nao informada'}\\nDono/Contato: ${lead.dono || 'nao identificado'}\\nStatus: ${lead.status || 'desconhecido'}\\n\\nHISTORICO DA CONVERSA:\\n${lead.historico_resumido || 'sem historico registrado'}\\n\\nANGULO USADO NA ABORDAGEM:\\n${lead.angulo || 'nao registrado'} - ${lead.conteudo_angulo || ''}\\n\\nRESULTADO QUE BUSCAM:\\n${lead.resultado_alvo || 'nao informado'}\\n\\nLink: ${event.hangout_link || 'verifique o Calendar'}`;\n\nreturn [{ json: { contexto, lead_nome: lead.nome_fantasia || lead.nome } }];"
+      }
+    },
+    {
+      "id": "agente-briefing-manha",
+      "name": "AGENTE BRIEFING MANHA",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        1760,
+        800
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.contexto }}",
+        "options": {
+          "systemMessage": "Voce e o supervisor comercial da Yonzza Digital. Hoje tem reuniao. Gere o briefing completo para a gestora se preparar bem.\n\nO que incluir:\n- Horario da reuniao e nome do lead\n- Perfil: negocio, segmento, cidade, dono\n- Resumo do que foi discutido ate aqui na conversa\n- Sinais identificados: dores, abertura, objecoes, momento do negocio\n- Angulo usado na abordagem (para nao repetir na reuniao)\n- Sugestao de como abrir a conversa na reuniao\n\nRegras:\n- Tom de supervisor preparando a gestora para uma reuniao importante\n- Direto e util, sem enfeitar\n- Sem markdown, sem emojis, sem tracinho longo\n- Separe blocos com \\\\\n- Maximo 5 blocos, cada um maximo 4 linhas\n\nRetorne APENAS o texto do briefing."
+        }
+      }
+    },
+    {
+      "id": "openrouter-briefing-manha",
+      "name": "OpenRouter Briefing Manha",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        980
+      ],
+      "parameters": {
+        "model": "google/gemini-2.5-flash",
+        "options": {}
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "KMgOXcSnFBf24OAC",
+          "name": "openrouter_cloudfy"
+        }
+      }
+    },
+    {
+      "id": "enviar-briefing-manha",
+      "name": "Envia Briefing Manha para Sarah",
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        1980,
+        800
+      ],
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "Teste API",
+        "remoteJid": "5511912319611@s.whatsapp.net",
+        "messageText": "={{ $json.output }}",
+        "options_message": {}
+      },
+      "credentials": {
+        "evolutionApi": {
+          "id": "WOx0wn6WBiHU43Kz",
+          "name": "evolution_cloudfy"
+        }
+      }
+    },
+    {
+      "id": "webhook-reuniao",
+      "name": "Webhook Reunião Agendada",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1200
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "reuniao-agendada-yonzza",
+        "options": {}
+      },
+      "webhookId": "reuniao-agendada-yonzza"
+    },
+    {
+      "id": "preparar-notif-reuniao",
+      "name": "Preparar Notificação Reunião",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        1200
+      ],
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tipo = body.tipo || 'reuniao';\nconst lead_nome = body.lead_nome || 'Lead';\nconst segmento = body.segmento || '';\nconst cidade = body.cidade || '';\n\nlet msg;\n\nif (tipo === 'contato_humano') {\n  const telefone = body.telefone || 'não informado';\n  const historico = (body.historico || '').substring(0, 200);\n  msg = `Ação necessária\\\\${lead_nome}${segmento ? ' · ' + segmento : ''} não é o decisor.\\\\Conseguimos dados para chegar ao responsável.\\\\WhatsApp: ${telefone}\\\\${historico ? 'Contexto: ' + historico : ''}`;\n} else {\n  const slot_label = body.slot_label || 'horário a confirmar';\n  const hangout_link = body.hangout_link || 'verifique o Calendar';\n  msg = `Reunião agendada agora\\\\${lead_nome}${segmento ? ' · ' + segmento : ''}${cidade ? ' · ' + cidade : ''}\\\\${slot_label}\\\\${hangout_link !== 'verifique o Calendar' ? hangout_link : 'Acesse o Google Calendar para o link do Meet'}\\\\Briefing completo chega hoje pela manhã`;\n}\n\nreturn [{ json: { mensagem: msg } }];"
+      }
+    },
+    {
+      "id": "envia-notif-reuniao",
+      "name": "Envia Notificação Reunião para Sarah",
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        440,
+        1200
+      ],
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "Teste API",
+        "remoteJid": "5511912319611@s.whatsapp.net",
+        "messageText": "={{ $json.mensagem }}",
+        "options_message": {}
+      },
+      "credentials": {
+        "evolutionApi": {
+          "id": "WOx0wn6WBiHU43Kz",
+          "name": "evolution_cloudfy"
+        }
+      }
+    },
+    {
+      "id": "memory-resumo",
+      "name": "Simple Memory Resumo",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=resumo-{{ new Date().toISOString().slice(0,10) }}",
+        "contextWindowLength": 5
+      }
+    },
+    {
+      "id": "memory-alerta",
+      "name": "Simple Memory Alerta",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1100,
+        600
+      ],
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=alerta-{{ new Date().toISOString().slice(0,10) }}",
+        "contextWindowLength": 5
+      }
+    },
+    {
+      "id": "memory-briefing-manha",
+      "name": "Simple Memory Briefing",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1760,
+        1000
+      ],
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Preparar Briefing Manha').first().json.lead_nome || new Date().toISOString().slice(0,10) }}",
+        "contextWindowLength": 5
+      }
+    }
+  ],
+  "connections": {
+    "Trigger 08h00 Resumo": {
+      "main": [
+        [
+          {
+            "node": "Timestamps Manha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Timestamps Manha": {
+      "main": [
+        [
+          {
+            "node": "Buscar Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Buscar Travados Manha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Travados Manha": {
+      "main": [
+        [
+          {
+            "node": "Preparar Contexto Resumo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Contexto Resumo": {
+      "main": [
+        [
+          {
+            "node": "AGENTE RESUMO MANHA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AGENTE RESUMO MANHA": {
+      "main": [
+        [
+          {
+            "node": "Envia Resumo para Sarah",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Resumo": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AGENTE RESUMO MANHA",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger 17h00 Alerta": {
+      "main": [
+        [
+          {
+            "node": "Timestamps Tarde",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Timestamps Tarde": {
+      "main": [
+        [
+          {
+            "node": "Buscar Travados Tarde",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Travados Tarde": {
+      "main": [
+        [
+          {
+            "node": "Buscar Abordados Antigos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Abordados Antigos": {
+      "main": [
+        [
+          {
+            "node": "Preparar Contexto Alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Contexto Alerta": {
+      "main": [
+        [
+          {
+            "node": "AGENTE ALERTA TARDE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AGENTE ALERTA TARDE": {
+      "main": [
+        [
+          {
+            "node": "Envia Alerta para Sarah",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Alerta": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AGENTE ALERTA TARDE",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger 08h00 Briefing": {
+      "main": [
+        [
+          {
+            "node": "Timestamps Hoje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Timestamps Hoje": {
+      "main": [
+        [
+          {
+            "node": "Listar Reunioes de Hoje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar Reunioes de Hoje": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Reunioes Yonzza Hoje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Reunioes Yonzza Hoje": {
+      "main": [
+        [
+          {
+            "node": "Extrair Telefone Manha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Telefone Manha": {
+      "main": [
+        [
+          {
+            "node": "Buscar Lead Briefing Manha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Lead Briefing Manha": {
+      "main": [
+        [
+          {
+            "node": "Preparar Briefing Manha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Briefing Manha": {
+      "main": [
+        [
+          {
+            "node": "AGENTE BRIEFING MANHA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AGENTE BRIEFING MANHA": {
+      "main": [
+        [
+          {
+            "node": "Envia Briefing Manha para Sarah",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Briefing Manha": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AGENTE BRIEFING MANHA",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envia Briefing Manha para Sarah": {
+      "main": [
+        []
+      ]
+    },
+    "Webhook Reunião Agendada": {
+      "main": [
+        [
+          {
+            "node": "Preparar Notificação Reunião",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Notificação Reunião": {
+      "main": [
+        [
+          {
+            "node": "Envia Notificação Reunião para Sarah",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory Resumo": {
+      "ai_memory": [
+        [
+          {
+            "node": "AGENTE RESUMO MANHA",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory Alerta": {
+      "ai_memory": [
+        [
+          {
+            "node": "AGENTE ALERTA TARDE",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory Briefing": {
+      "ai_memory": [
+        [
+          {
+            "node": "AGENTE BRIEFING MANHA",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

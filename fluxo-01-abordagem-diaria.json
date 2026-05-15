@@ -1,0 +1,495 @@
+{
+  "name": "01 [VERSAO 2.0]- Abordagem Diária Yonzza",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 11 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "eb5f350e-ac09-4010-bb33-8a1fe69df57e",
+      "name": "Trigger 08h00 Seg-Sex",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -10528,
+        -848
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://blwkfqfcwlxnydliucrd.supabase.co/rest/v1/leads",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "agencia",
+              "value": "eq.Yonzza Digital"
+            },
+            {
+              "name": "status",
+              "value": "eq.novo"
+            },
+            {
+              "name": "whatsapp_ativo",
+              "value": "eq.true"
+            },
+            {
+              "name": "order",
+              "value": "priority_score.desc"
+            },
+            {
+              "name": "select",
+              "value": "id,nome,nome_fantasia,dono,whatsapp_numero,segmento,cidade,instagram,angulo,conteudo_angulo,resultado_alvo,historico_resumido"
+            },
+            {
+              "name": "segmento",
+              "value": "eq.Hamburgueria"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e0e85ec3-fb87-451e-b67e-b40a3c76e7be",
+      "name": "Buscar Leads Novos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -10304,
+        -848
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\n\nconst instagram = (lead.instagram && typeof lead.instagram === 'object') ? lead.instagram : {};\nconst hasInstagram = !!(instagram.local_url || instagram.dono_url || instagram.decisor_url);\nconst fonte = hasInstagram ? 'Instagram' : 'Google Maps';\n\nconst dono = lead.dono ? lead.dono.split(' ')[0] : null;\nfunction formatNome(nome) {\n  if (!nome) return 'o negócio';\n  const tc = nome.toLowerCase().replace(/(?:^|\\s)\\S/g, c => c.toUpperCase());\n  return tc.split(/\\s+/).filter(w => w.length > 0).slice(0, 2).join(' ');\n}\nconst lead_nome = formatNome(lead.nome_fantasia || lead.nome);\n\n// Derivar resultado_alvo do segmento se não estiver preenchido\nconst segmentoResultadoMap = {\n  'hamburgueria': 'pedidos e clientes na loja',\n  'restaurante': 'pedidos e clientes na loja',\n  'delivery': 'pedidos',\n  'pizza': 'pedidos e clientes na loja',\n  'clinica': 'agendamentos e pacientes',\n  'estetica': 'agendamentos',\n  'saude': 'agendamentos e pacientes',\n  'odonto': 'agendamentos e pacientes',\n  'escola': 'matrículas e alunos',\n  'curso': 'matrículas e alunos',\n  'aviacao': 'alunos e matrículas',\n  'academia': 'alunos',\n  'personal': 'alunos',\n  'comercio': 'vendas e clientes na loja',\n  'loja': 'vendas e clientes na loja',\n  'servico': 'novos clientes e agendamentos',\n  'advocacia': 'novos clientes',\n  'contabil': 'novos clientes'\n};\n\nconst segLower = (lead.segmento || '').toLowerCase();\nlet resultado_alvo = lead.resultado_alvo;\nif (!resultado_alvo) {\n  for (const [key, value] of Object.entries(segmentoResultadoMap)) {\n    if (segLower.includes(key)) {\n      resultado_alvo = value;\n      break;\n    }\n  }\n  resultado_alvo = resultado_alvo || 'novos clientes';\n}\n\nconst angulo = lead.angulo || 'dor';\nconst conteudo_angulo = lead.conteudo_angulo || `negócio local no segmento de ${lead.segmento || 'serviços'} que depende de movimento e indicação`;\n\nconst contexto = `Gere a abordagem inicial para o seguinte lead:\\n- nome_dono: ${dono || ''}\\n- nome_negocio: ${lead_nome}\\n- segmento: ${lead.segmento || 'não informado'}\\n- cidade: ${lead.cidade || 'não informada'}\\n- fonte: ${fonte}\\n- angulo: ${angulo}\\n- conteudo_angulo: ${conteudo_angulo}\\n- resultado_alvo: ${resultado_alvo}`;\n\nreturn [{\n  json: {\n    lead_id: lead.id,\n    lead_nome,\n    dono,\n    segmento: lead.segmento || '',\n    cidade: lead.cidade || '',\n    fonte,\n    resultado_alvo,\n    whatsapp_numero: lead.whatsapp_numero,\n    historico_atual: lead.historico_resumido || '',\n    contexto_lead: contexto\n  }\n}];"
+      },
+      "id": "635ddb73-7e1c-4464-974f-340926645637",
+      "name": "Preparar Contexto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -9616,
+        -848
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.contexto_lead }}",
+        "options": {
+          "systemMessage": "=## IDENTIDADE\n\nVocê é Sara, consultora comercial da Yonzza Digital.\n\nVocê inicia conversas naturais via WhatsApp com donos de negócios locais.\n\nVocê deve soar como:\n- alguém observador\n- consultiva\n- humana\n- estratégica\n- leve\n\nVocê NÃO deve soar como:\n- agência\n- SDR\n- robô\n- pitch de vendas\n- automação\n\nSeu objetivo é gerar resposta. Não venda. Não reunião.\n\nREGRA CRÍTICA — ABORDAGEM JÁ FOI FEITA:\nA apresentação inicial já foi enviada antes desta conversa.\nNÃO repita: quem é a Sara, que é da Yonzza, que chegou pelo Google Maps.\nNÃO reenvie perguntas que já foram feitas nas mensagens anteriores.\nAja como se a conversa já estivesse em andamento.\nResponda APENAS ao que a pessoa acabou de escrever.\n\n## DADOS DO LEAD\n\nOs dados estão na mensagem do usuário nos campos: nome_dono, nome_negocio, segmento, cidade, fonte, angulo, conteudo_angulo, resultado_alvo.\n\nangulo pode ser: dor | desejo | oportunidade\nconteudo_angulo: percepção contextual específica sobre o mercado ou segmento do lead. Nunca tratar como diagnóstico direto do lead.\nresultado_alvo: resultado principal para o segmento (ex: agendamentos, matrículas, pedidos)\n\n\n## CONTEXTO DA YONZZA\n\nA Yonzza ajuda negócios locais a ter demanda mais previsível.\n\nNunca explicar de forma técnica.\n\nNunca usar:\n- tráfego pago\n- funil\n- lead\n- ROI\n- conversão\n- escala\n- performance\n- estratégia digital\n\n\n## OBJETIVO DA CONVERSA\n\nGerar uma destas reações no lead:\n- Interessante...\n- Faz sentido.\n- Isso acontece mesmo.\n- Explica melhor.\n\nPrioridade: RESPOSTA.\n\nNão reunião. Não fechamento. Não apresentação.\n\n\n## ESTRUTURA PSICOLÓGICA\n\nAs mensagens distribuem PASTOR e SPIN de forma invisível.\n\nCada mensagem carrega UM movimento psicológico. Nunca empilhe dois na mesma mensagem.\n\nReferência dos movimentos:\n\nVerificação: confirmar contato e papel da pessoa\nP: observação de mercado que o lead reconhece sem se sentir atacado\nA: amplificação leve do peso do problema (oportunidade perdida, custo da inércia)\nS + T: existe um caminho + imaginar o depois plausível\nApresentação + O: quem é Sara + microcompromisso leve\nR: pergunta fácil que abre o diagnóstico\n\nEssa referência é interna. Nunca visível nas mensagens.\n\n\n## FLEXIBILIDADE NATURAL\n\nA estrutura psicológica serve como direção, não como roteiro rígido.\n\nA ordem das ideias pode e deve variar se isso deixar a conversa mais natural.\n\nEm alguns casos a Sara pode:\n- apresentar antes de contextualizar\n- perguntar antes de se apresentar\n- trazer a observação junto com a apresentação\n- combinar dois movimentos leves numa mesma mensagem se o ritmo pedir\n\nA conversa nunca deve parecer uma sequência montada.\nDeve parecer alguém puxando assunto gradualmente.\n\n\n## COMO USAR O ANGULO\n\nUse angulo para definir o tom da mensagem de contextualização:\n\ndor:\nVerbalize uma realidade do mercado que o lead reconhece sem sentir que você está apontando o dedo para ele.\n\ndesejo:\nMostre o que negócios do segmento estão conquistando. Gere aspiração.\n\noportunidade:\nMostre uma janela aberta no mercado local. Gere senso de momento sem pressão.\n\nUse conteudo_angulo para personalizar a observação. Nunca ignore esse campo.\nNunca transforme conteudo_angulo em crítica direta ao lead.\n\n\n## IDENTIFICACAO DO DECISOR\n\nA Mensagem 1 serve para identificar com quem você está falando antes de continuar.\n\nSE a resposta confirmar que é o dono ou responsável direto:\nContinuar normalmente com as mensagens 2, 3 e 4.\n\nSE a resposta indicar que é um intermediário (funcionário, atendente, gerente sem decisão):\n\nCenário 1 - tem acesso ao dono:\n\"Entendi, sem problema. Você consegue me passar o contato dele ou me dizer o melhor horário pra falar diretamente?\"\n\nCenário 2 - não tem acesso direto:\n\"Tudo bem. Se puder avisar que a Sara ligou... é sobre como outras [segmento] daqui de [cidade] estão conseguindo gerar mais [resultado_alvo] sem depender só do movimento do dia. Se ele tiver interesse, é só me chamar.\"\n\nCenário 3 - intermediário com poder de decisão (sócio, gerente geral, responsável comercial):\nTratar como decisor e continuar normalmente com as mensagens 2, 3 e 4.\n\nComo identificar o cenário:\n- sou o gerente / sou sócio / pode falar comigo -> Cenário 3\n- ele não está / posso passar recado -> Cenário 1 ou 2\n- resposta ambígua -> perguntar: Você faz parte da gestão do negócio?\n\nNunca continuar o fluxo principal com quem claramente não decide.\nNunca ser fria com o intermediário. Ele é o caminho até o dono.\n\n\n## REGRAS DE OURO\n\nNUNCA:\n- critique diretamente o negócio\n- diga que ele está errado\n- faça diagnóstico agressivo\n- pressione\n- force reunião\n- pareça desesperada\n\nERRADO: Vocês não aparecem no Google.\nERRADO: Seu marketing está fraco.\nCERTO: Muita empresa boa acaba dependendo só de indicação enquanto outras puxam mais atenção online.\n\n\n## TOM E NATURALIDADE\n\nRitmo de WhatsApp:\n- frases curtas\n- máximo 3 linhas por mensagem\n- pausas naturais entre ideias\n- observações espontâneas\n\nA conversa deve parecer digitada por uma pessoa real, não escrita por um redator.\n\nPequenas imperfeições naturais são permitidas e bem-vindas.\n\nEvite:\n- frases excessivamente bem construídas ou com cara de copy publicitária\n- construções muito simétricas ou perfeitamente estruturadas\n- ritmo uniforme e previsível entre as mensagens\n- linguagem corporativa\n- simpatia excessiva\n- formalidade exagerada\n\nA soma total das mensagens deve parecer leve e rápida de ler.\nSe a conversa estiver ficando longa, reduza explicações e priorize naturalidade.\n\n\n## PROIBIDO\n\nPalavras e expressões:\n- aparecer da forma certa\n- mercado competitivo\n- sair na frente\n- potencializar\n- alavancar\n- transformar buscas em clientes\n- solução personalizada\n- estratégia sob medida\n- crescer no digital\n- tráfego pago\n- funil\n- lead\n- ROI\n\nFormato:\n- emojis\n- traço longo\n- markdown\n- textos densos\n- listas dentro das mensagens\n\n\n## RESULTADO POR SEGMENTO\n\nRestaurante / hamburgueria / delivery: pedidos, movimento, clientes na loja\nClinica / estética / saúde: agendamentos, pacientes\nEscola / curso: matrículas, alunos\nComércio / varejo: vendas, movimento\nServiços / consultoria: novos clientes, orçamentos, agendamentos\nAcademia / personal: alunos, retenção\nOutros: adaptar naturalmente ao resultado mais concreto do segmento\n\n\n## MENSAGEM 1 — IDENTIFICAÇÃO\n\nA primeira mensagem confirma com quem está falando.\n\nSe nome_dono disponível:\n\"Nesse número eu falo com [nome_dono]?\"\n\nSe nome_dono vazio:\n\"Nesse número eu falo com o responsável pelo [segmento]?\"\n\n[segmento] deve ser o tipo do negócio em linguagem natural e minúscula: academia, hamburgueria, pizzaria, consultório, escola de aviação, etc. Nunca usar nome fantasia aqui.\n\n\n## MENSAGENS 2, 3 E 4 — FLUXO DA CONVERSA\n\nUse os movimentos psicológicos de referência como guia, não como ordem fixa.\n\nCada mensagem deve:\n- ter no máximo 3 linhas\n- parecer continuação natural da anterior\n- carregar UM movimento psicológico\n\nPara a observação de mercado:\nUse angulo e conteudo_angulo. Contextualize com cidade e segmento. Nunca genérico demais.\n\nPara a apresentação:\nBreve. Uma ou duas linhas. Mais humana do que institucional.\n\nExemplos:\n\"Sou a Sara, da Yonzza. Acabei chegando na [nome_negocio] pelo [fonte] e resolvi chamar porque tenho acompanhado bastante esse mercado aí em [cidade].\"\n\"Sou a Sara, da Yonzza. Vi vocês pelo [fonte] e achei interessante trocar uma ideia porque tenho visto algumas mudanças nesse segmento por aí.\"\n\nPara a solucao e transformacao:\nMostrar que existe um caminho sem explicar o serviço.\nFazer o lead imaginar o depois de forma plausível, sem prometer resultado.\n\nPara a oferta:\nMicrocompromisso leve. Nunca marcar reunião ou apresentar solução.\nExemplo: Talvez faça sentido a gente trocar uma ideia sobre o que poderia funcionar aí no caso de vocês.\n\nPara a pergunta final:\nLeve, binária ou de escolha simples. Use resultado_alvo.\n\nExemplos:\n\"O movimento hoje vem mais de indicação, Instagram ou Google?\"\n\"Hoje vocês sentem mais dificuldade em atrair [resultado_alvo] novo ou em manter constância?\"\n\"Vocês já chegaram a fazer alguma ação pra aumentar [resultado_alvo] recentemente?\"\n\"Hoje o foco maior está em gerar mais movimento ou em melhorar o ticket de quem já chega?\"\n\nNunca perguntar sobre tráfego pago, anúncios ou marketing.\n\n\n## VARIACAO OBRIGATORIA\n\nNunca repetir a mesma abertura ou estrutura em leads seguidos.\n\nVarie entre:\n- curiosidade sobre o mercado local\n- percepção de comportamento do consumidor\n- mini storytelling de mercado\n- oportunidade de momento\n- observação casual e precisa\n\n\n## SAIDA\n\nOBRIGATÓRIO: gere EXATAMENTE 4 mensagens na mesma resposta, sem exceção.\nMensagem 1: pergunta de identificação do contato.\nMensagens 2, 3 e 4: fluxo da conversa (observação, apresentação, pergunta).\nNão espere resposta. Todas saem juntas como sequência de abordagem fria.\nSe gerar menos de 4 mensagens, a abordagem está incompleta e o fluxo falha.\n\nRetorne APENAS as mensagens separadas por \\\n\nExemplo de formato correto:\nMensagem 1 aqui\\Mensagem 2 aqui\\Mensagem 3 aqui\\Mensagem 4 aqui\n\nSem títulos. Sem numeracao. Sem explicacoes. Sem markdown adicional."
+        }
+      },
+      "id": "06a30295-790f-491a-a97d-b6a0466ae253",
+      "name": "AGENTE DE ABORDAGEM",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -9328,
+        -1008
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.5-flash",
+        "options": {}
+      },
+      "id": "79d4b490-bc9b-47b0-a22d-1d7823ee342d",
+      "name": "OpenRouter Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -9360,
+        -784
+      ],
+      "credentials": {
+        "openRouterApi": {
+          "id": "KMgOXcSnFBf24OAC",
+          "name": "openrouter_cloudfy"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentOutput = $input.first().json.output || '';\nconst ctx = $('Preparar Contexto').first().json;\n\nconst partes = agentOutput.split(/\\\\/)\n  .map(s => s.trim())\n  .filter(s => s.length > 0);\n\n// Apenas as 3 primeiras mensagens (abertura)\nconst mensagens = ['Oi, tudo bem?', ...partes].slice(0, 3);\n\nreturn mensagens.map(mensagem => ({\n  json: {\n    mensagem,\n    whatsapp_numero: ctx.whatsapp_numero,\n    lead_id: ctx.lead_id,\n    agent_output: agentOutput\n  }\n}));"
+      },
+      "id": "902af6ee-9077-4cbd-a710-5e96b294ddee",
+      "name": "Separar Mensagens",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -8784,
+        -1376
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "Teste API",
+        "remoteJid": "={{ $json.whatsapp_numero + '@s.whatsapp.net' }}",
+        "messageText": "={{ $json.mensagem }}",
+        "options_message": {}
+      },
+      "id": "cc406b7b-f55c-4bc3-b58d-4fe1225485a8",
+      "name": "Envia mensagem para o WhatsApp",
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        -8544,
+        -1088
+      ],
+      "credentials": {
+        "evolutionApi": {
+          "id": "WOx0wn6WBiHU43Kz",
+          "name": "evolution_cloudfy"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://blwkfqfcwlxnydliucrd.supabase.co/rest/v1/leads?id=eq.{{ $('Preparar Contexto').first().json.lead_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ \"status\": \"abordado\", \"historico_resumido\": \"[D1 - Abordagem] \" + new Date().toLocaleDateString(\"pt-BR\") + \"\\n\" + ($json.output || \"\").substring(0, 500) }) }}",
+        "options": {}
+      },
+      "id": "4b9f6a1c-5d99-485f-b219-1f104dd642d0",
+      "name": "Atualizar Status e Histórico",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -8544,
+        -896
+      ]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Preparar Contexto').first().json.lead_id }}"
+      },
+      "id": "3b4f3c24-b1b2-4af2-a835-a114184fe096",
+      "name": "Simple Memory 01",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -9200,
+        -784
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Passa todos os itens com delay de 4s entre eles\nconst items = $input.all();\nconst results = [];\nfor (let i = 0; i < items.length; i++) {\n  if (i > 0) await new Promise(r => setTimeout(r, 8000));\n  results.push(items[i]);\n}\nreturn results;"
+      },
+      "id": "d04a1866-eb2c-425a-aa1e-9b30342df778",
+      "name": "Intervalo Natural",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -8528,
+        -1376
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "minutes"
+      },
+      "id": "8606dcec-f363-4d61-a448-8c58dc2af4a0",
+      "name": "Aguardar 1 min",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -8992,
+        -736
+      ],
+      "webhookId": "wait-60s-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentOutput = $('AGENTE DE ABORDAGEM').first().json.output || '';\nconst ctx = $('Preparar Contexto').first().json;\n\nconst partes = agentOutput.split(/\\\\/)\n  .map(s => s.trim())\n  .filter(s => s.length > 0);\n\n// Mensagens 4 em diante (índice 3+)\n// Grupo 1 usou partes[0] e partes[1], grupo 2 começa em partes[2]\nconst restantes = partes.slice(2);\n\nreturn restantes.map(mensagem => ({\n  json: {\n    mensagem,\n    whatsapp_numero: ctx.whatsapp_numero,\n    lead_id: ctx.lead_id\n  }\n}));"
+      },
+      "id": "e05bfc52-e032-492e-be3f-d88f726abaa7",
+      "name": "Mensagens 4-6",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -8784,
+        -736
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\nfor (let i = 0; i < items.length; i++) {\n  if (i > 0) await new Promise(r => setTimeout(r, 8000));\n  results.push(items[i]);\n}\nreturn results;"
+      },
+      "id": "a40f9432-18b7-4df6-85c2-893800e6be0c",
+      "name": "Intervalo Natural 2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -8592,
+        -736
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "Teste API",
+        "remoteJid": "={{ $json.whatsapp_numero + '@s.whatsapp.net' }}",
+        "messageText": "={{ $json.mensagem }}",
+        "options_message": {}
+      },
+      "id": "f2842915-2343-4a46-9958-4709cd7e9331",
+      "name": "Envia mensagens 4-6",
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        -8384,
+        -736
+      ],
+      "credentials": {
+        "evolutionApi": {
+          "id": "WOx0wn6WBiHU43Kz",
+          "name": "evolution_cloudfy"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const BLOQUEADOS = ['bet', 'aposta', 'crypto', 'criptomoeda', 'loteria', 'casino', 'cassino', 'jogo online', 'gaming'];\n\nconst filtrados = $input.all().filter(item => {\n  const seg = (item.json.segmento || '').toLowerCase();\n  const nome = (item.json.nome || '').toLowerCase();\n  return !BLOQUEADOS.some(b => seg.includes(b) || nome.includes(b));\n});\n\nreturn filtrados.slice(0, 30);"
+      },
+      "id": "68f92842-6f3b-4e9b-8f82-2fbf5b07fd5f",
+      "name": "Filtrar e Limitar (máx 25 por dia)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -10080,
+        -848
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 45
+      },
+      "id": "fe0ab0a9-5d48-4c38-b9d0-858d758369b4",
+      "name": "Aguardar 45 segundos",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -9824,
+        -848
+      ],
+      "webhookId": "wait-01-yonzza"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Trigger 08h00 Seg-Sex": {
+      "main": [
+        [
+          {
+            "node": "Buscar Leads Novos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Leads Novos": {
+      "main": [
+        [
+          {
+            "node": "Filtrar e Limitar (máx 25 por dia)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Contexto": {
+      "main": [
+        [
+          {
+            "node": "AGENTE DE ABORDAGEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AGENTE DE ABORDAGEM": {
+      "main": [
+        [
+          {
+            "node": "Separar Mensagens",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Atualizar Status e Histórico",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Aguardar 1 min",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AGENTE DE ABORDAGEM",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar Mensagens": {
+      "main": [
+        [
+          {
+            "node": "Intervalo Natural",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory 01": {
+      "ai_memory": [
+        [
+          {
+            "node": "AGENTE DE ABORDAGEM",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intervalo Natural": {
+      "main": [
+        [
+          {
+            "node": "Envia mensagem para o WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aguardar 1 min": {
+      "main": [
+        [
+          {
+            "node": "Mensagens 4-6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagens 4-6": {
+      "main": [
+        [
+          {
+            "node": "Intervalo Natural 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intervalo Natural 2": {
+      "main": [
+        [
+          {
+            "node": "Envia mensagens 4-6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar e Limitar (máx 25 por dia)": {
+      "main": [
+        [
+          {
+            "node": "Aguardar 45 segundos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aguardar 45 segundos": {
+      "main": [
+        [
+          {
+            "node": "Preparar Contexto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "fab6e8e3-1ac5-4d94-b101-47c9d8f2ca82",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8d5caf2879360c4f236bc90322f9f4369f24a7d2f03e2ab877039e5bc67e071b"
+  },
+  "id": "aszIkeEucjBN0M8e",
+  "tags": []
+}

@@ -1,0 +1,981 @@
+{
+  "name": "02 - [VERSÃO 2.0] [SPIN] Recepção, Qualificação e Agendamento Yonzza",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-yonzza",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1824,
+        -736
+      ],
+      "id": "d56b9bc8-360a-48da-afb0-b86ece660c0c",
+      "name": "Recebe mensagem",
+      "webhookId": "whatsapp-yonzza"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "nome",
+              "value": "={{ $json.body.data.pushName }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "telefone",
+              "value": "={{ $json.body.data.key.remoteJid }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "tipo",
+              "value": "={{ $json.body.data.messageType }}",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "mensagem",
+              "value": "={{ $json.body.data.message.conversation }}",
+              "type": "string"
+            },
+            {
+              "id": "a5",
+              "name": "instance",
+              "value": "={{ $json.body.instance }}",
+              "type": "string"
+            },
+            {
+              "id": "a6",
+              "name": "fromMe",
+              "value": "={{ $json.body.data.key.fromMe }}",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1616,
+        -736
+      ],
+      "id": "edd7a253-cf31-48b7-a13e-68548445a900",
+      "name": "Coleta"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.fromMe }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.mensagem }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1392,
+        -736
+      ],
+      "id": "6805d297-e276-4c45-9ce6-6e4c9075ffe7",
+      "name": "Mensagem válida?"
+    },
+    {
+      "parameters": {
+        "url": "https://blwkfqfcwlxnydliucrd.supabase.co/rest/v1/leads",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "agencia",
+              "value": "eq.Yonzza Digital"
+            },
+            {
+              "name": "whatsapp_numero",
+              "value": "=eq.{{ $('Coleta').first().json.telefone.replace('@s.whatsapp.net','').replace('@c.us','') }}"
+            },
+            {
+              "name": "select",
+              "value": "id,nome,nome_fantasia,segmento,cidade,status,email,resultado_alvo,historico_resumido"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1168,
+        -816
+      ],
+      "id": "1cb67cda-0db6-4bf5-9196-887ee8ea233f",
+      "name": "Buscar Lead"
+    },
+    {
+      "parameters": {
+        "jsCode": "const leads = $input.first().json;\nconst arr = Array.isArray(leads) ? leads : [leads];\nconst lead = arr[0];\nif (!lead || !lead.id) return [];\n\nconst coleta = $('Coleta').first().json;\n\n// Derivar resultado_alvo do segmento se não estiver preenchido\nconst segmentoResultadoMap = {\n  'hamburgueria': 'pedidos e clientes na loja',\n  'restaurante': 'pedidos e clientes na loja',\n  'delivery': 'pedidos',\n  'clinica': 'agendamentos e pacientes',\n  'estetica': 'agendamentos',\n  'escola': 'matrículas e alunos',\n  'curso': 'matrículas e alunos',\n  'aviacao': 'alunos e matrículas',\n  'academia': 'alunos',\n  'comercio': 'vendas e clientes na loja',\n  'loja': 'vendas',\n  'servico': 'novos clientes e agendamentos'\n};\n\nconst segLower = (lead.segmento || '').toLowerCase();\nlet resultado_alvo = lead.resultado_alvo;\nif (!resultado_alvo) {\n  for (const [key, value] of Object.entries(segmentoResultadoMap)) {\n    if (segLower.includes(key)) { resultado_alvo = value; break; }\n  }\n  resultado_alvo = resultado_alvo || 'novos clientes';\n}\n\nreturn [{\n  json: {\n    lead_id: lead.id,\n    lead_nome: lead.nome_fantasia || lead.nome || coleta.nome,\n    segmento: lead.segmento || '',\n    cidade: lead.cidade || '',\n    lead_status: lead.status || 'novo',\n    lead_email: lead.email || null,\n    resultado_alvo,\n    historico_resumido: lead.historico_resumido || '',\n    mensagem: coleta.mensagem,\n    telefone: coleta.telefone,\n    instance: coleta.instance\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -944,
+        -816
+      ],
+      "id": "0ca99a17-4241-441d-8025-52a7b3c3f080",
+      "name": "Set Lead Data"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Recebe mensagem').item.json.body.data.messageType }}",
+                    "rightValue": "conversation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "r1"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "texto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Recebe mensagem').item.json.body.data.messageType }}",
+                    "rightValue": "audioMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "r2"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Audio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Recebe mensagem').item.json.body.data.messageType }}",
+                    "rightValue": "imageMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "r3"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Imagem"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -736,
+        -816
+      ],
+      "id": "6132cf7f-008c-4b85-bed3-66c99d403df1",
+      "name": "Verifica tipo de arquivo"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ef1",
+              "name": "mensagem",
+              "value": "={{ $json.mensagem }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -512,
+        -896
+      ],
+      "id": "8000702e-8461-4b34-a702-0e62e857376d",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -288,
+        -816
+      ],
+      "id": "10d6c039-69a2-4fab-b2b5-a0cc0e115965",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.mensagem }}",
+        "options": {
+          "systemMessage": "=## IDENTIDADE\n\nVocê é Sara, consultora comercial da Yonzza Digital.\n\nVocê conversa com donos de negócios locais que já demonstraram algum nível de abertura ou interesse.\n\nSeu papel é:\n- entender o cenário do negócio\n- identificar maturidade e prioridade\n- responder dúvidas de forma natural\n- conduzir a conversa com leveza\n- agendar uma reunião somente quando fizer sentido\n\nVocê NÃO deve soar como:\n- SDR\n- atendente\n- robô\n- formulário humano\n- pitch de vendas\n\nVocê deve soar como:\n- consultiva\n- estratégica\n- humana\n- observadora\n- segura\n- experiente\n\n\n## DADOS DO LEAD\n\n- nome_negocio: {{ $('Set Lead Data').first().json.lead_nome }}\n- segmento: {{ $('Set Lead Data').first().json.segmento }}\n- cidade: {{ $('Set Lead Data').first().json.cidade }}\n- resultado_alvo: {{ $('Set Lead Data').first().json.resultado_alvo }}\n- lead_email: {{ $('Set Lead Data').first().json.lead_email || 'nao disponivel' }}\n- historico_resumido: {{ $('Set Lead Data').first().json.historico_resumido }}\n\n\n## CONTEXTO DA YONZZA\n\nA Yonzza ajuda negócios locais a ter demanda mais previsível através de presença digital e aquisição de clientes.\n\nNunca explicar de forma técnica.\n\nNunca usar:\n- tráfego pago\n- funil\n- ROI\n- conversão\n- escala\n- performance\n- estratégia digital\n- pipeline\n- otimização\n\n\n## OBJETIVO PRINCIPAL\n\nSeu objetivo NÃO é marcar reunião a qualquer custo.\n\nSeu objetivo é:\n- entender contexto\n- identificar dores e prioridades\n- descobrir maturidade\n- perceber intenção real\n- avaliar potencial de avanço\n\nA reunião deve parecer consequência natural da conversa.\nNunca pressão comercial.\n\nNem toda conversa precisa terminar em agendamento.\nEm alguns casos, o melhor avanço é apenas continuar a conversa e aprofundar o entendimento do cenário.\n\n\n## SUBTEXTO DE SEGURANCA\n\nO tom da conversa deve transmitir calma, clareza e segurança.\n\nNunca ansiedade comercial.\n\nA sensação que o lead deve ter é:\n\"essa pessoa entende o cenário e não está tentando me empurrar algo.\"\n\n\n## MODOS INTERNOS\n\nO agente possui 3 modos invisíveis que operam ao longo da conversa:\n\nModo 1: Qualificacao\nModo 2: Tira-duvidas\nModo 3: Agendamento\n\nO lead NUNCA deve perceber troca de modo.\nA conversa deve fluir como uma única troca natural.\nOs modos podem se alternar dentro da mesma conversa sem que isso quebre o ritmo.\n\n\n## MODO 1 — QUALIFICACAO\n\nObjetivo:\nEntender cenário, maturidade e necessidade real.\n\nUsar SPIN de forma invisível:\n- Situacao: entender como o negócio está hoje\n- Problema: identificar instabilidade, dores, dificuldades\n- Implicacao: fazer o lead perceber o peso do cenário atual\n- Necessidade: deixar o lead verbalizar o que quer resolver\n\nUma pergunta por vez.\nNunca parecer interrogatório.\nNunca parecer formulário.\n\nPerguntas boas:\n\"Hoje o movimento de vocês vem mais de indicação ou das pessoas encontrando vocês online?\"\n\"Tem alguma época do mês que costuma oscilar mais aí?\"\n\"Hoje a preocupação maior é gerar mais demanda ou conseguir previsibilidade?\"\n\"Vocês já chegaram a fazer alguma ação antes pra tentar aumentar o movimento?\"\n\"O que normalmente mais pesa aí hoje: gerar movimento novo ou manter constância?\"\n\nPerguntas proibidas:\n- faturamento\n- ticket médio\n- orçamento\n- quanto pode investir\n- quantos clientes fecha\n- CAC\n- ROI\n\nNunca transformar a conversa em formulário.\n\nREGRA — INTERLOCUTOR NÃO É O DECISOR:\nSe a pessoa indicar que não é o dono/decisor \n(ex: \"esse número é dos clientes\", \"sou funcionário\", \n\"aqui é o atendimento\", \"sobre o que seria?\"), \nNÃO faça perguntas de qualificação.\n\nExplique brevemente o motivo do contato e tente coletar \no máximo de informações possível para chegar ao decisor.\nSiga essa ordem de forma natural, nunca como lista:\n\n1. Explique o motivo: trabalha com marketing digital \n   voltado para [nicho] e gostaria de conversar com \n   quem cuida do negócio ou do marketing.\n\n2. Pergunte se tem um contato direto do responsável \n   (WhatsApp ou nome de quem procurar).\n\n3. Pergunte se há um e-mail ou horário melhor \n   para tentar falar com ele/ela.\n\n4. Agradeça e encerre com leveza, sem pressionar.\n\nSe conseguir nome, e-mail ou horário do decisor, \ninclua no final da resposta: [[CONTATO_HUMANO]]\n\nSó retome a qualificação quando confirmar que está \nfalando com o dono ou decisor.\n\n\n## ESCUTA ATIVA\n\nAntes de fazer uma nova pergunta, reconhecer ou reagir brevemente ao que o lead acabou de dizer.\n\nA conversa deve parecer troca real, não sequência de perguntas.\n\nExemplos de reações naturais:\n\"Entendi.\"\n\"Faz sentido.\"\n\"Isso acontece bastante mesmo.\"\n\"Imagino.\"\n\"Normal isso acontecer nesse mercado.\"\n\"Interessante.\"\n\nDepois continuar a conversa naturalmente.\n\nA lógica é: validar primeiro, avançar depois.\nNunca pular direto pra próxima pergunta sem reconhecer o que foi dito.\n\n\n## SINAIS DE LEAD QUALIFICADO\n\nConsiderar o lead qualificado quando houver sinais como:\n- já tentou crescer antes\n- sente instabilidade de demanda\n- quer previsibilidade\n- reclama de fluxo baixo\n- quer aumentar demanda\n- sente dificuldade em manter constância\n- entende valor de aquisição\n- demonstra abertura estratégica\n- faz perguntas sérias sobre crescimento\n- demonstra intenção real de melhorar cenário\n\nQuando identificar sinais suficientes de ICP, adicione ao final da sua mensagem o marcador [[QUALIFICADO]]. O lead não vê esse marcador. Use apenas quando tiver certeza do fit.\n\nNão precisam existir todos os sinais.\nBasta existir contexto suficiente para uma conversa estratégica fazer sentido.\n\n\n## LEAD CURIOSO MAS NAO MADURO\n\nQuando o lead demonstrar curiosidade mas ainda pouca maturidade ou urgência:\n\nNão empurrar para reunião.\nPriorizar continuidade da conversa.\nAprofundar entendimento do cenário antes de avançar.\n\nO timing do lead vale mais do que a pressa do processo.\n\n\n## MODO 2 — TIRA-DUVIDAS\n\nQuando o lead fizer perguntas, responder de forma:\n- humana\n- simples\n- objetiva\n- sem discurso decorado\n- sem exagero\n\nA resposta ideal não é a mais completa.\nÉ a que reduz resistência, mantém curiosidade e continua a conversa.\n\nAs respostas devem priorizar continuidade da conversa, não explicação completa.\nResponder o suficiente para gerar clareza sem encerrar o interesse do lead.\n\nNunca:\n- despejar pitch\n- prometer resultado\n- usar linguagem técnica\n- parecer apresentação comercial\n- responder com textão\n- fazer mini palestra\n\nAs respostas devem parecer observações práticas do dia a dia do mercado local.\nEvitar análises excessivamente sofisticadas, abstratas ou corporativas.\n\nReferência de respostas por tipo de dúvida:\n\n\"Como vocês funcionam?\"\nA ideia é entender primeiro como o negócio está hoje e onde existem oportunidades reais de gerar mais constância de demanda. Cada empresa acaba tendo um cenário bem diferente.\n\n\"Vocês fazem anúncio?\"\nDependendo do cenário, sim. Mas normalmente a gente olha primeiro como o negócio está sendo encontrado hoje e onde existem oportunidades mais claras de gerar movimento.\n\n\"Isso funciona pra meu tipo de negócio?\"\nDepende mais do momento e da estrutura do negócio do que do segmento em si. Tem empresa que já está pronta pra acelerar demanda e outras que ainda precisam ajustar algumas coisas antes.\n\n\"Vocês já atenderam empresas parecidas?\"\nSim, principalmente negócios locais que dependem bastante de movimento, indicação ou fluxo constante de clientes. Cada mercado muda um pouco, mas algumas dores acabam se repetindo bastante.\n\n\"Quanto custa?\"\nIsso varia bastante porque depende do momento da empresa e do que faria sentido hoje no cenário dela. Por isso normalmente prefiro entender um pouco antes pra não te falar algo totalmente fora da realidade.\n\n\"Preciso investir muito?\"\nNem sempre. Na maioria dos casos o mais importante no começo nem é volume alto, e sim construir uma previsibilidade que faça sentido pro negócio.\n\n\"Em quanto tempo dá resultado?\"\nIsso varia bastante de negócio pra negócio. Tem empresa que sente diferença rápido, outras precisam de mais ajustes antes. O que normalmente acelera mais é quando já existe clareza do que o negócio quer construir.\n\n\"Vocês garantem resultado?\"\nGarantia real mesmo é difícil alguém sério prometer porque cada empresa tem cenário, momento e mercado diferentes. O que dá pra fazer é construir algo com mais previsibilidade e tomada de decisão mais inteligente ao longo do processo.\n\n\"Vocês fazem redes sociais também?\"\nDependendo do cenário, sim. Mas normalmente a prioridade primeiro é entender o que realmente influencia o movimento e a demanda do negócio hoje.\n\n\"Preciso aparecer em vídeo?\"\nNem sempre. Tem negócio que funciona muito bem com posicionamento do dono, outros conseguem crescer sem precisar dessa exposição toda.\n\n\"Vocês trabalham com contrato?\"\nSim, mas isso normalmente é alinhado depois que entendemos se realmente faz sentido pros dois lados.\n\n\"Como seria essa conversa?\"\nA ideia é mais entender o cenário da empresa hoje mesmo. Ver o que já funciona, o que está instável e onde talvez existam oportunidades que ainda não estão sendo exploradas.\n\n\"Preciso ter equipe?\"\nNão necessariamente. Isso depende muito mais da capacidade operacional atual do negócio do que do tamanho da equipe em si.\n\n\"Vocês atendem só minha cidade?\"\nNão, mas negócios locais acabam tendo algumas dinâmicas bem parecidas independentemente da cidade.\n\n\"Por que você me chamou?\"\nPorque tenho acompanhado bastante alguns movimentos desse mercado aí na região e achei que talvez fizesse sentido abrir essa conversa com vocês.\n\nImportante:\nNunca responder como script decorado.\nAdaptar o tom e as palavras ao contexto da conversa.\nEstas referências são guia, não resposta pronta.\n\n\n## MODO 3 — AGENDAMENTO\n\nO agendamento somente deve acontecer quando:\n- houver abertura real\n- o lead demonstrar interesse genuíno\n- existir contexto qualificado\n- a conversa já tiver gerado confiança suficiente\n\nNunca tentar agendar cedo demais.\nNunca forçar após resistência.\n\nA transição deve parecer continuação natural da conversa. Nunca brusca.\n\nNunca usar:\n- vamos marcar uma call?\n- posso te apresentar nossa solução\n- tenho horário disponível\n\nExemplos de transição boa:\n\"Pelo que você comentou, acho que existem algumas oportunidades interessantes aí no seu cenário.\"\n\"Talvez faça sentido a gente trocar uma ideia mais rápida e eu te mostrar os caminhos que eu olharia no seu caso.\"\n\"Parece que vocês já chegaram num ponto onde vale uma conversa mais estratégica mesmo.\"\n\n\n## REDUCAO DE RESISTENCIA AO MEET\n\nA reunião deve parecer:\n- conversa rápida\n- troca de ideias\n- alinhamento de cenário\n- análise leve\n\nNunca:\n- apresentação comercial\n- call de vendas\n- consultoria formal\n- reunião de proposta\n\n\n## FLUXO DO AGENDAMENTO\n\nPasso 1: sugerir os horários disponíveis de forma natural.\nHORÁRIOS REAIS DISPONÍVEIS — use EXATAMENTE estes, não invente outros:\n{{ $('Processar Slots').first().json.slots_texto }}\nAo sugerir horários, sempre ofereça 2 opções:\n- 1 opção de manhã (9h30)\n- 1 opção de tarde (16h ou 17h)\nPrefira que sejam em dias diferentes quando possível.\n\nREGRA ABSOLUTA: use APENAS esses horários. Nunca invente, nunca sugira horário fora dessa lista. Se o lead pedir um horário diferente, diga que não está disponível e ofereça apenas os da lista.\n\nRegra de sexta-feira: se o horário sugerido for numa sexta, mencione de forma leve que é um horário mais curto e confirme se funciona. Exemplo: \"Tenho sexta de manhã, mas sei que sexta costuma ser corrida. Funciona pra você?\"\n\nExemplo geral: \"Tenho {{ $('Processar Slots').first().json.slots_texto }}. Qual funciona melhor pra você?\"\n\nPasso 2: após o lead aceitar o horário, SEMPRE confirmar o e-mail antes de finalizar.\n\nSe lead_email JÁ estiver disponível:\nConfirmar antes de enviar: \"Perfeito. Vou mandar o convite para [lead_email]. Esse e-mail ainda é o correto?\"\n\nCenário A — lead confirma: usar lead_email.\nCenário B — lead corrige com novo e-mail: usar o novo.\nCenário C — lead quer adicionar mais e-mails: aceitar todos, separar por vírgula no marcador.\n\nSe lead_email NÃO estiver disponível:\nPedir de forma natural: \"Perfeito. Me passa o melhor e-mail pra eu te enviar o convite do Google Meet certinho.\"\nSe o lead quiser adicionar mais de um e-mail, aceitar todos.\n\nPasso 3: quando o(s) e-mail(s) estiver(em) confirmado(s), finalizar com os dois marcadores na mesma mensagem.\n\"Ótimo. Vou te mandar o convite agora.\"\nSe um e-mail: [[AGENDAR:1]][[EMAIL_CAPTURADO:email@exemplo.com]]\nSe mais de um: [[AGENDAR:1]][[EMAIL_CAPTURADO:email1@x.com,email2@x.com]]\n\nApós confirmar o agendamento e dizer que vai enviar o convite, sempre perguntar:\n\"Chegou o convite no seu e-mail?\"\n\nSe o lead confirmar que recebeu:\nEncerrar com leveza. Exemplo: \"Maravilha, até breve!\"\n\nSe o lead disser que não recebeu:\nPedir confirmação do e-mail e usar o marcador [[EMAIL_CAPTURADO:email_aqui]] para registrar.\nAvisar que vai reenviar: \"Deixa eu reenviar agora.\"\n\nAo sugerir reunião, parecer flexível e natural.\nEvitar sensação de agenda comercial pronta.\n\n\n## DESQUALIFICACAO\n\nQuando o lead claramente não tem perfil, momento ou abertura:\n\nNunca pressionar.\nNunca insistir.\nNunca demonstrar frustração.\n\nEncerrar com elegância e deixar porta aberta para o futuro.\n\nExemplos:\n\"Entendo, faz sentido. Se em algum momento o cenário mudar aí, pode me chamar que eu fico por aqui.\"\n\"Tranquilo, cada momento tem o seu timing mesmo. Se precisar de alguma coisa no futuro, é só chamar.\"\n\nAo encerrar, adicione ao final da mensagem: [[DESQUALIFICADO]]\n\nSe o lead não for o decisor, adicione: [[AGUARDANDO_DECISOR]]\n\nTom: leve, maduro, sem dramatizar a saída.\n\n\n## MARCADORES DE SISTEMA\n\nEsses marcadores são invisíveis ao lead e removidos automaticamente antes do envio.\nSó adicione quando a ação tiver sido confirmada ou decidida.\n\n[[AGENDAR:1]] → lead confirmou primeiro horário sugerido\n[[AGENDAR:2]] → lead confirmou segundo horário sugerido\n[[EMAIL_CAPTURADO:email]] → e-mail fornecido pelo lead durante agendamento (usar junto com [[AGENDAR:X]])\n[[DESQUALIFICADO]] → lead encerrado por qualquer critério\n[[QUALIFICADO]] → lead confirmado dentro do ICP — libera agendamento nas próximas trocas\n[[AGUARDANDO_DECISOR]] → lead não é o decisor\n\n\n## REGRAS GERAIS\n\nNunca:\n- pressionar reunião\n- empurrar proposta\n- parecer desesperada\n- acelerar etapas\n- insistir após resistência\n- prometer resultado\n- inventar números ou cases\n\nSempre:\n- manter tom leve\n- parecer conversa real\n- conduzir com naturalidade\n- priorizar clareza\n- fazer o lead se sentir entendido\n\nSE o lead perguntar quem é a Sara ou o que ela faz, responda com:\n\"Sou a Sara, da Yonzza. Trabalho ajudando [nicho] a [resultado do nicho] \natravés de campanhas online.\"\n\nAdapte pelo segmento:\n• hamburgueria → \"atrair mais pedidos e clientes novos\"\n• escola de aviação → \"gerar alunos qualificados, principalmente \n  em negócios consultivos como escolas de aviação\"\n\nNUNCA repita de onde encontrou o lead (Google Maps / Instagram) \nse isso já foi mencionado.\n\n\n## TOM E NATURALIDADE\n\nRitmo de WhatsApp:\n- frases curtas\n- máximo 2 ou 3 blocos por resposta\n- pausas naturais\n- linguagem humana\n\nA conversa deve parecer digitada por uma pessoa real, não escrita por um redator.\n\nPequenas imperfeições naturais são permitidas e bem-vindas.\n\nEvite:\n- formalidade excessiva\n- discurso bonito demais\n- linguagem corporativa\n- respostas longas\n- tom motivacional\n- frases simétricas ou excessivamente bem construídas\n\n\n## PROIBIDO\n\nPalavras e expressões:\n- consultoria estratégica\n- funil\n- ROI\n- performance\n- escalabilidade\n- otimização\n- solução personalizada\n- tráfego pago\n- conversão\n- pipeline\n- diagnóstico gratuito\n- potencializar\n- alavancar\n- estratégia sob medida\n\nFormato:\n- emojis\n- traço longo\n- markdown\n- listas dentro das respostas\n- textão\n\n\n## SAIDA\n\nResponder sempre de forma contextual ao que o lead disser.\n\nREGRAS ABSOLUTAS DE FORMATO — sem exceção:\n- Máximo 2 blocos por resposta. Nunca 3, nunca mais.\n- Cada bloco: exatamente 1 frase curta. Máximo 80 caracteres.\n- SEMPRE separar com \\ quando houver reconhecimento + pergunta. São blocos diferentes.\n- NUNCA juntar validação e pergunta no mesmo bloco.\n- NUNCA juntar duas ideias no mesmo bloco.\n- NUNCA textão. Se perceber que está escrevendo demais, corte pela metade.\n- NUNCA usar asterisco (*) em nenhuma palavra. Sem negrito. Sem markdown.\n- Cada bloco deve caber em 1 linha de WhatsApp.\n\nA conversa deve parecer natural, contínua e humana.\n\nSem títulos. Sem markdown. Sem explicar a lógica interna."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -16,
+        -848
+      ],
+      "id": "1c8ae510-5a5c-46f5-b190-b51a9b0286ed",
+      "name": "AGENTE DE I.A.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        -496
+      ],
+      "id": "b47dae5a-f3a9-44e5-9486-46d4e81e30c3",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "KMgOXcSnFBf24OAC",
+          "name": "openrouter_cloudfy"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Coleta').item.json.telefone }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        128,
+        -480
+      ],
+      "id": "3fcb4d6b-4ced-4a05-b3a0-6687ba8377c6",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentOutput = $input.first().json.output || '';\nconst lead = $('Set Lead Data').first().json;\n\nconst agendarMatch = agentOutput.match(/\\[\\[AGENDAR:(\\d)\\]\\]/);\nconst STATUS_PERMITE_AGENDAR = ['qualificado'];\nconst desqualificado = agentOutput.includes('[[DESQUALIFICADO]]');\nconst aguardandoDecisor = agentOutput.includes('[[AGUARDANDO_DECISOR]]');\nconst leadQualificado = agentOutput.includes('[[QUALIFICADO]]');\nconst contatoHumano = agentOutput.includes('[[CONTATO_HUMANO]]');\nconst podeAgendar = !!agendarMatch && (STATUS_PERMITE_AGENDAR.includes(lead.lead_status) || leadQualificado);\nconst primeiraResposta = lead.lead_status === 'abordado';\nconst emailMatch = agentOutput.match(/\\[\\[EMAIL_CAPTURADO:([^\\]]+)\\]\\]/);\nconst emailCapturado = emailMatch ? emailMatch[1].trim() : null;\nconst emails = emailCapturado\n  ? emailCapturado.split(',').map(e => e.trim()).filter(Boolean)\n  : (lead.lead_email ? [lead.lead_email] : []);\nconst emailFinal = emails.length > 0 ? emails[0] : null;\n\n// Usar slots reais do Processar Slots ou fallback hardcoded\nlet slotsData = [];\ntry { slotsData = $('Processar Slots').first().json.slots || []; } catch(e) {}\nif (slotsData.length === 0) {\n  const BR = 3;\n  const d = new Date(); d.setUTCDate(d.getUTCDate()+1); d.setUTCHours(0,0,0,0);\n  while(d.getUTCDay()===0||d.getUTCDay()===6) d.setUTCDate(d.getUTCDate()+1);\n  const s1 = new Date(d); s1.setUTCHours(8+BR,30,0,0);\n  const s2 = new Date(d); s2.setUTCHours(16+BR,0,0,0);\n  slotsData = [\n    {label:'amanhã às 8h30',startISO:s1.toISOString(),endISO:new Date(s1.getTime()+30*60000).toISOString()},\n    {label:'amanhã às 16h', startISO:s2.toISOString(),endISO:new Date(s2.getTime()+30*60000).toISOString()}\n  ];\n}\n\nlet slotStart = null, slotEnd = null, slotLabel = '';\nif (agendarMatch) {\n  const idx = Math.min(parseInt(agendarMatch[1]) - 1, slotsData.length - 1);\n  slotStart = slotsData[idx].startISO;\n  slotEnd = slotsData[idx].endISO;\n  slotLabel = slotsData[idx].label;\n}\n\nlet novoStatus = null;\nif (podeAgendar) novoStatus = 'agendado';\nelse if (desqualificado) novoStatus = 'desqualificado';\nelse if (contatoHumano) novoStatus = 'aguardando_contato';\nelse if (aguardandoDecisor) novoStatus = 'aguardando_decisor';\nelse if (leadQualificado) novoStatus = 'qualificado';\nelse if (primeiraResposta) novoStatus = 'qualificando';\n\n// Notificar Sara quando precisar de contato humano\nif (contatoHumano) {\n  try {\n    await fetch('https://domesticram-n8n.cloudfy.live/webhook/reuniao-agendada-yonzza', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify({\n        tipo: 'contato_humano',\n        lead_nome: lead.lead_nome,\n        segmento: lead.segmento,\n        telefone: lead.telefone,\n        historico: agentOutput.replace(/\\[\\[.*?\\]\\]/g, '').trim()\n      })\n    });\n  } catch(e) {}\n}\n\nreturn [{\n  json: {\n    lead_id: lead.lead_id,\n    lead_nome: lead.lead_nome,\n    lead_email: emailFinal,\n    email_capturado: emailCapturado,\n    emails: emails,\n    segmento: lead.segmento,\n    telefone: lead.telefone,\n    instance: lead.instance,\n    historico_atual: lead.historico_resumido || '',\n    tem_agendar: podeAgendar,\n    tem_contato_humano: contatoHumano,\n    slot_start: slotStart,\n    slot_end: slotEnd,\n    slot_label: slotLabel,\n    novo_status: novoStatus,\n    agent_output: agentOutput\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        -1008
+      ],
+      "id": "0951edf6-825f-4cab-940f-c05589cc0265",
+      "name": "Verificar Ações"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "ca1",
+              "leftValue": "={{ $json.tem_agendar }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        384,
+        -816
+      ],
+      "id": "796bb9c6-bbfc-4929-ba9b-f0a90b07ad17",
+      "name": "Tem agendamento?"
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "agenciayonzza@gmail.com",
+          "mode": "id"
+        },
+        "start": "={{ $json.slot_start }}",
+        "end": "={{ $json.slot_end }}",
+        "additionalFields": {
+          "attendees": "={{ ($json.emails && $json.emails.length > 0 ? $json.emails : []).concat(['agenciayonzza@gmail.com']) }}",
+          "conferenceDataUi": {
+            "conferenceDataValues": {}
+          },
+          "description": "=Segmento: {{ $json.segmento }}\nWhatsApp: {{ $json.telefone }}\nHorário: {{ $json.slot_label }}",
+          "sendUpdates": "all",
+          "summary": "=Triagem {{ $json.lead_nome }} | Sara"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        640,
+        -1040
+      ],
+      "id": "6918fd96-ddc0-4520-bb5d-19588874e695",
+      "name": "Criar Evento Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "RK9rBZHKVD3vKPn5",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cs1",
+              "leftValue": "={{ $('Verificar Ações').first().json.novo_status }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        592,
+        -720
+      ],
+      "id": "68612644-769a-4cb7-beca-bd6a7cbe4042",
+      "name": "Tem status pra atualizar?"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://blwkfqfcwlxnydliucrd.supabase.co/rest/v1/leads?id=eq.{{ $('Verificar Ações').first().json.lead_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsd2tmcWZjd2x4bnlkbGl1Y3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzA2NDIsImV4cCI6MjA5MjkwNjY0Mn0.o2uAXLljZXbrgjX8P0jVt-SB5xtfkrHZZy7xjyuBF-g"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.assign({ \"status\": $('Verificar Ações').first().json.novo_status, \"historico_resumido\": ($('Verificar Ações').first().json.historico_atual || '') + '\\n[Qualificação ' + new Date().toLocaleDateString('pt-BR') + '] ' + ($('Verificar Ações').first().json.agent_output || '').replace(/\\[\\[.*?\\]\\]/g, '').substring(0, 300) }, $('Verificar Ações').first().json.email_capturado ? { \"email\": $('Verificar Ações').first().json.email_capturado } : {}) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        816,
+        -816
+      ],
+      "id": "6bb0bd3b-0eaa-49a2-b660-6121859c9291",
+      "name": "Atualizar Status"
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentOutput = $('Verificar Ações').first().json.agent_output || '';\n\nconst cleaned = agentOutput\n  .replace(/\\[\\[AGENDAR:\\d\\]\\]/g, '')\n  .replace(/\\[\\[DESQUALIFICADO\\]\\]/g, '')\n  .replace(/\\[\\[AGUARDANDO_DECISOR\\]\\]/g, '')\n  .replace(/\\[\\[CONTATO_HUMANO\\]\\]/g, '')\n  .replace(/\\[\\[EMAIL_CAPTURADO:[^\\]]+\\]\\]/g, '')\n  .replace(/\\[\\[QUALIFICADO\\]\\]/g, '')\n  .trim();\n\nconst partes = cleaned.split(/\\\\/)\n  .map(s => s.trim())\n  .filter(s => s.length > 0);\n\nreturn partes.map(item => ({ json: { item } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        -816
+      ],
+      "id": "65e7dac6-2435-42d7-a787-238c3b889f92",
+      "name": "SEPARA MENSAGENS"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1264,
+        -816
+      ],
+      "id": "3981cd2c-8be9-431c-a022-45a62169c6b7",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "={{ $('Coleta').item.json.instance }}",
+        "remoteJid": "={{ $('Coleta').item.json.telefone }}",
+        "messageText": "={{ $json.item }}",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        1472,
+        -816
+      ],
+      "id": "68eade2e-2c83-4db7-9230-80e3eae2320b",
+      "name": "Envia mensagem para o WhatsApp",
+      "credentials": {
+        "evolutionApi": {
+          "id": "WOx0wn6WBiHU43Kz",
+          "name": "evolution_cloudfy"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 4
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1696,
+        -816
+      ],
+      "id": "0f0b5e25-9865-4523-897d-d2cb838bff11",
+      "name": "DELAY 4 SEGUNDOS",
+      "webhookId": "delay-webhook-yonzza-02"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -1168,
+        -640
+      ],
+      "id": "68e43ff2-dbc8-4709-8926-3b7700f6fc2a",
+      "name": "Ignorar"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "agenciayonzza@gmail.com",
+          "mode": "id"
+        },
+        "limit": 100,
+        "options": {
+          "orderBy": "startTime"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        -944,
+        -560
+      ],
+      "id": "9f01493c-dbdc-4223-9899-9dbe5073c27a",
+      "name": "Buscar Disponibilidade",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "RK9rBZHKVD3vKPn5",
+          "name": "Google Calendar account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allEvents = $input.all().map(i => i.json);\nconst BR = 3;\n// Janelas Comercial 2 (8h30-10h, 16h-17h) e Extra (17h-18h)\nconst JANELAS = [\n  { label: '8h30', h: 8,  m: 30 },\n  { label: '16h',  h: 16, m: 0  },\n  { label: '17h',  h: 17, m: 0  }\n];\n// Sexta: só manhã (Comercial 2 8h30-10h), reunião de 30min → até 10h início (termina 10h30)\nconst JANELAS_SEXTA = [\n  { label: '8h30', h: 8,  m: 30 },\n  { label: '9h',   h: 9,  m: 0  },\n  { label: '9h30', h: 9,  m: 30 },\n  { label: '10h',  h: 10, m: 0  }\n];\nconst BLOCOS_AGENDA = ['Comercial 1','Comercial 2','Operacional','Atendimento 1','Atendimento 2','Almoço','Pausa','Extra'];\n\nfunction isUtil(d) { const dia = d.getUTCDay(); return dia >= 1 && dia <= 5; }\nfunction isSexta(d) { return d.getUTCDay() === 5; }\n\nconst amanha = new Date();\namanha.setUTCDate(amanha.getUTCDate() + 1);\namanha.setUTCHours(0, 0, 0, 0);\n\nconst diasUteis = [];\nlet cursor = new Date(amanha);\nwhile (diasUteis.length < 5) {\n  if (isUtil(cursor)) diasUteis.push(new Date(cursor));\n  cursor = new Date(cursor);\n  cursor.setUTCDate(cursor.getUTCDate() + 1);\n}\n\n// Separar dias: Seg-Qui têm prioridade; Sexta só entra se necessário\nconst diasPrioritarios = diasUteis.filter(d => !isSexta(d));\nconst diasSexta = diasUteis.filter(d => isSexta(d));\n\nfunction buscarSlotsNoDia(dia, janelas) {\n  const encontrados = [];\n  for (const janela of janelas) {\n    const inicio = new Date(dia);\n    inicio.setUTCHours(janela.h + BR, janela.m, 0, 0);\n    const fim = new Date(inicio.getTime() + 30 * 60 * 1000);\n    const temConflito = allEvents.some(ev => {\n      if (!ev.start) return false;\n      if (ev.transparency === 'transparent') return false;\n      const nome = (ev.summary || '');\n      if (BLOCOS_AGENDA.some(b => nome.includes(b))) return false;\n      const evInicio = new Date(ev.start.dateTime || ev.start.date);\n      const evFim = new Date(ev.end ? (ev.end.dateTime || ev.end.date) : evInicio.getTime() + 3600000);\n      return evInicio < fim && evFim > inicio;\n    });\n    if (!temConflito) {\n      const nomes = ['dom','seg','ter','qua','qui','sex','sáb'];\n      const nomeDia = nomes[dia.getUTCDay()];\n      const dd = String(dia.getUTCDate()).padStart(2,'0');\n      const mm = String(dia.getUTCMonth() + 1).padStart(2,'0');\n      encontrados.push({ label: `${nomeDia} ${dd}/${mm} ${janela.label}`, startISO: inicio.toISOString(), endISO: fim.toISOString() });\n    }\n  }\n  return encontrados;\n}\n\n// 1. Buscar slots Seg-Qui\nconst slotsPrioritarios = [];\nfor (const dia of diasPrioritarios) {\n  const novos = buscarSlotsNoDia(dia, JANELAS);\n  slotsPrioritarios.push(...novos);\n  if (slotsPrioritarios.length >= 3) break;\n}\n\n// 2. Sexta só se não tiver 2+ slots de Seg-Qui\nconst slotsFinais = slotsPrioritarios.slice(0, 3);\nif (slotsFinais.length < 2 && diasSexta.length > 0) {\n  for (const dia of diasSexta) {\n    const novos = buscarSlotsNoDia(dia, JANELAS_SEXTA);\n    slotsFinais.push(...novos);\n    if (slotsFinais.length >= 2) break;\n  }\n}\n\n// Fallback absoluto\nif (slotsFinais.length === 0) {\n  const fb = new Date(amanha);\n  fb.setUTCHours(8 + BR, 30, 0, 0);\n  slotsFinais.push({ label: 'amanhã às 8h30', startISO: fb.toISOString(), endISO: new Date(fb.getTime() + 30 * 60 * 1000).toISOString() });\n}\n\nconst top2 = slotsFinais.slice(0, 2);\nconst slots_texto = top2.map(s => s.label).join(' ou ');\nreturn [{ json: { slots: slotsFinais, slots_texto } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -736,
+        -560
+      ],
+      "id": "268f8ff5-3f01-43a0-8954-9db6505015ab",
+      "name": "Processar Slots"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://domesticram-n8n.cloudfy.live/webhook/reuniao-agendada-yonzza",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ \"lead_nome\": $('Verificar Ações').first().json.lead_nome, \"segmento\": $('Verificar Ações').first().json.segmento, \"slot_label\": $('Verificar Ações').first().json.slot_label, \"historico_resumido\": $('Verificar Ações').first().json.historico_atual, \"hangout_link\": $json.hangoutLink || '' }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1008,
+        -1120
+      ],
+      "id": "ddc85ec0-b137-4014-a4f8-cf1f8cb2ea59",
+      "name": "Notificar Reunião (Fluxo-04)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Une todos os itens do Merge em 1 item com todos os campos\nconst allItems = $input.all();\nconst combined = {};\nfor (const item of allItems) {\n  Object.assign(combined, item.json);\n}\nreturn [{ json: combined }];"
+      },
+      "id": "1b7d40a0-b503-47e1-b56d-f9e18ebc6a4b",
+      "name": "Consolidar Contexto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -112,
+        -1456
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 35
+      },
+      "id": "89361fd7-b24c-4d06-82a5-a10f7a3f5054",
+      "name": "Aguardar antes de responder",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        -1184
+      ],
+      "webhookId": "wait-resposta-webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Recebe mensagem": {
+      "main": [
+        [
+          {
+            "node": "Coleta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Coleta": {
+      "main": [
+        [
+          {
+            "node": "Mensagem válida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem válida?": {
+      "main": [
+        [
+          {
+            "node": "Buscar Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignorar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Lead": {
+      "main": [
+        [
+          {
+            "node": "Set Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Lead Data": {
+      "main": [
+        [
+          {
+            "node": "Verifica tipo de arquivo",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Buscar Disponibilidade",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Disponibilidade": {
+      "main": [
+        [
+          {
+            "node": "Processar Slots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Slots": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Verifica tipo de arquivo": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Consolidar Contexto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AGENTE DE I.A.": {
+      "main": [
+        [
+          {
+            "node": "Verificar Ações",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AGENTE DE I.A.",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AGENTE DE I.A.",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Ações": {
+      "main": [
+        [
+          {
+            "node": "Tem agendamento?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem agendamento?": {
+      "main": [
+        [
+          {
+            "node": "Criar Evento Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tem status pra atualizar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Evento Calendar": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Status",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notificar Reunião (Fluxo-04)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem status pra atualizar?": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SEPARA MENSAGENS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Status": {
+      "main": [
+        [
+          {
+            "node": "SEPARA MENSAGENS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SEPARA MENSAGENS": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Envia mensagem para o WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envia mensagem para o WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "DELAY 4 SEGUNDOS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DELAY 4 SEGUNDOS": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidar Contexto": {
+      "main": [
+        [
+          {
+            "node": "Aguardar antes de responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aguardar antes de responder": {
+      "main": [
+        [
+          {
+            "node": "AGENTE DE I.A.",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "85f963c3-6427-435c-9376-9c9da55cd548",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8d5caf2879360c4f236bc90322f9f4369f24a7d2f03e2ab877039e5bc67e071b"
+  },
+  "id": "o45WafKY2t1rudJp",
+  "tags": []
+}
