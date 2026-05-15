@@ -137,7 +137,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst results = [];\nfor (let i = 0; i < items.length; i++) {\n  if (i > 0) await new Promise(r => setTimeout(r, 8000));\n  results.push(items[i]);\n}\nreturn results;"
+        "jsCode": "const items = $input.all();\nconst results = [];\nfor (let i = 0; i < items.length; i++) {\n  if (i > 0) await new Promise(r => setTimeout(r, 3000));\n  results.push(items[i]);\n}\nreturn results;"
       },
       "id": "d04a1866-eb2c-425a-aa1e-9b30342df778",
       "name": "Intervalo Natural",
@@ -167,13 +167,16 @@
     },
     {
       "parameters": {
-        "jsCode": "await new Promise(r => setTimeout(r, 30000));\nreturn $input.all();"
+        "resume": "timeInterval",
+        "amount": 30,
+        "unit": "seconds"
       },
       "id": "8606dcec-f363-4d61-a448-8c58dc2af4a0",
       "name": "Aguardar 30s",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [-8992, -736]
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [-8992, -736],
+      "webhookId": "aguardar-30s-msgs46-yonzza-01"
     },
     {
       "parameters": {
@@ -187,7 +190,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst results = [];\nfor (let i = 0; i < items.length; i++) {\n  if (i > 0) await new Promise(r => setTimeout(r, 8000));\n  results.push(items[i]);\n}\nreturn results;"
+        "jsCode": "const items = $input.all();\nconst results = [];\nfor (let i = 0; i < items.length; i++) {\n  if (i > 0) await new Promise(r => setTimeout(r, 3000));\n  results.push(items[i]);\n}\nreturn results;"
       },
       "id": "a40f9432-18b7-4df6-85c2-893800e6be0c",
       "name": "Intervalo Natural 2",
