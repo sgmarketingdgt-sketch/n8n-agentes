@@ -840,29 +840,6 @@
     },
     {
       "parameters": {
-        "resource": "messages-api",
-        "instanceName": "={{ $('Coleta').item.json.instance }}",
-        "remoteJid": "={{ $('Tem agendamento?').first().json.telefone }}",
-        "messageText": "=Convite enviado para {{ $('Tem agendamento?').first().json.email_capturado || $('Tem agendamento?').first().json.lead_email }}. Reunião confirmada: {{ $('Tem agendamento?').first().json.slot_label }}. O link do Google Meet está no convite.",
-        "options_message": {}
-      },
-      "id": "confirmar-agendamento-wa-02",
-      "name": "Confirmar Agendamento WA",
-      "type": "n8n-nodes-evolution-api.evolutionApi",
-      "typeVersion": 1,
-      "position": [
-        840,
-        -1280
-      ],
-      "credentials": {
-        "evolutionApi": {
-          "id": "WOx0wn6WBiHU43Kz",
-          "name": "evolution_cloudfy"
-        }
-      }
-    },
-    {
-      "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": false,
@@ -1160,11 +1137,6 @@
           },
           {
             "node": "Notificar Reunião (Fluxo-04)",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Confirmar Agendamento WA",
             "type": "main",
             "index": 0
           }
